@@ -5,8 +5,8 @@
 <h1 align="center">XVB3</h1>
 <p align="center">Extended Video Broadcast — Version 3</p>
 <p align="center">
-  <a href="https://jonathansanfilippo.github.io/xvb-3/">Live App</a> &nbsp;·&nbsp;
-  <a href="https://jonathansanfilippo.github.io/xvb-3/settings.html">Settings</a> &nbsp;·&nbsp;
+  <a href="https://">Live App coming soon</a> &nbsp;·&nbsp;
+  <a href="https://">Settings coming soon</a> &nbsp;·&nbsp;
   MIT License
 </p>
 

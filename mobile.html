@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-page" content="true">
+    <link rel="icon" type="image/jpeg" href="assets/icon.jpg">
+    <title>XVB3</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0">
+    <link rel="stylesheet" href="css/mobile.css">
+</head>
+<body>
+
+    <!-- Settings panel (CSS-only, slide da destra) -->
+    <input type="checkbox" id="settings-toggle">
+    <label for="settings-toggle" class="scrim-overlay"></label>
+    <aside id="settings-panel">
+        <div class="settings-header">
+            <h3>Menu</h3>
+            <label for="settings-toggle" class="icon-btn">
+                <span class="material-symbols-outlined">close</span>
+            </label>
+        </div>
+        <div class="settings-content">
+            <a href="settings.html" class="settings-item">
+                <span class="material-symbols-outlined">settings</span>
+                <span>Settings</span>
+            </a>
+            <a href="settings.html?tab=profile" class="settings-item">
+                <span class="material-symbols-outlined">account_circle</span>
+                <span>Profile</span>
+            </a>
+            <a href="settings.html?tab=about" class="settings-item">
+                <span class="material-symbols-outlined">info</span>
+                <span>About</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Top bar -->
+    <header class="top-bar">
+        <button id="avatarBtn" class="topbar-avatar" title="Profile">
+            <img id="topbarAvatarImg" src="" alt="">
+            <span class="material-symbols-outlined" id="topbarAvatarIcon">account_circle</span>
+        </button>
+        <div id="searchWrapMobile">
+            <span class="material-symbols-outlined">search</span>
+            <input id="searchInput" type="text" placeholder="Search..." autocomplete="off">
+        </div>
+        <label for="settings-toggle" class="icon-btn">
+            <span class="material-symbols-outlined">settings</span>
+        </label>
+    </header>
+
+    <!-- Categories chips -->
+    <nav class="category-container" id="categoriesBar"></nav>
+
+    <!-- Channel list -->
+    <main>
+        <div id="channelsArea"></div>
+    </main>
+
+    <!-- Player overlay -->
+    <div id="playerOverlay">
+        <div id="playerBg"></div>
+        <video id="videoEl" playsinline></video>
+        <iframe id="videoIframe"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+            allow="autoplay; fullscreen" frameborder="0">
+        </iframe>
+        <div id="iframeShield"></div>
+
+        <div id="playerControls">
+            <div id="playerTop">
+                <button id="playerClose" class="icon-btn player-close-btn">
+                    <span class="material-symbols-outlined">keyboard_arrow_down</span>
+                </button>
+                <div id="playerLogoWrap">
+                    <img id="playerLogoImg" src="" alt="" style="display:none">
+                    <div id="playerLogoText" style="display:none" class="dark-fallback"></div>
+                </div>
+                <span id="playerProgramTitle"></span>
+                <div id="qualityBadge" style="margin-left:auto"></div>
+            </div>
+
+            <div class="player-status-pill" id="playerStatusPill" hidden>
+                <div class="player-spinner-ring" id="playerSpinnerInner"></div>
+                <span id="playerStatusMsg"></span>
+            </div>
+
+            <div id="playerBottom">
+                <div id="playerProgressWrap">
+                    <div id="playerProgressBar"><div id="playerProgress"></div></div>
+                </div>
+                <div id="playerBar">
+                    <button id="playerPrevChan" class="pbar-btn">
+                        <span class="material-symbols-outlined">skip_previous</span>
+                    </button>
+                    <button id="playerPlay" class="pbar-btn-play">
+                        <span class="material-symbols-outlined" id="playerPlayIcon">pause</span>
+                    </button>
+                    <button id="playerNextChan" class="pbar-btn">
+                        <span class="material-symbols-outlined">skip_next</span>
+                    </button>
+                    <div id="playerTimeDisplay" class="pbar-time" style="margin-left:auto"></div>
+                    <button id="speedBtn" class="pbar-btn pbar-speed"><span id="speedLabel">1×</span></button>
+                    <button id="recordBtn" class="pbar-btn pbar-rec">
+                        <span id="recordIcon" class="material-symbols-outlined">radio_button_checked</span>
+                    </button>
+                    <button id="fullScreenBtn" class="pbar-btn">
+                        <span class="material-symbols-outlined">open_in_full</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="recFloatingBadge" class="rec-floating-badge" hidden style="display:none">
+            <div class="rec-floating-dot"></div>
+            <span id="recFloatingTimer">00:00</span>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loadingOverlay" hidden>
+        <div class="loading-spinner"></div>
+        <div id="loadingText">Loading…</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.10.7/shaka-player.compiled.min.js"></script>
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

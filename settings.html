@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="icon" type="image/jpeg" href="assets/icon.jpg">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XVB3 — Settings</title>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cascadia+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,1,0">
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+
+    :root {
+      --bg:          #0f0d13;
+      --surface:     #1c1b1f;
+      --surf1:       #252329;
+      --surf2:       #2d2b33;
+      --surf3:       #38353f;
+      --outline:     rgba(255,255,255,.10);
+      --outline-v:   rgba(255,255,255,.05);
+      --primary:     #d0bcff;
+      --primary-c:   rgba(208,188,255,.15);
+      --on-primary:  #381e72;
+      --on-surf:     #ece6f0;
+      --on-surf-v:   rgba(236,230,240,.72);
+      --on-surf-d:   rgba(236,230,240,.42);
+      --error:       #f2b8b8;
+      --error-c:     rgba(242,184,184,.13);
+      --server:      #cfbcff;
+      --url:         #ffe082;
+      --local:       #a8dab5;
+      --epg:         #80cbc4;
+      --font: 'Google Sans','Roboto',sans-serif;
+    }
+
+    html,body {
+      width:100%; height:100%; overflow:hidden;
+      background:var(--bg);
+      color:var(--on-surf);
+      font-family:var(--font);
+      font-size:16px; /* base TV */
+      -webkit-font-smoothing:antialiased;
+    }
+    body {
+      background:
+        radial-gradient(ellipse 70% 55% at 8% 0%,   rgba(103,80,164,.24) 0%,transparent 55%),
+        radial-gradient(ellipse 55% 45% at 92% 100%,rgba(103,80,164,.14) 0%,transparent 55%),
+        var(--bg);
+      background-attachment:fixed;
+    }
+
+    .material-symbols-outlined {
+      font-family:'Material Symbols Outlined';
+      font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24;
+      font-size:22px; line-height:1;
+      display:inline-block; vertical-align:middle;
+    }
+    @keyframes spin       { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+    @keyframes epgPulse   { 0%,100%{opacity:1} 50%{opacity:.3} }
+    @keyframes shimmer    { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
+
+    /* ══ LAYOUT ══ */
+    .layout {
+      display:grid;
+      grid-template-columns:280px 1fr;
+      height:100vh;
+    }
+
+    /* ══ SIDEBAR ══ */
+    .sidebar {
+      background:var(--surface);
+      border-right:1px solid var(--outline-v);
+      display:flex; flex-direction:column;
+      padding:20px 14px;
+      gap:3px;
+      overflow-y:auto;
+    }
+    .sidebar::-webkit-scrollbar{display:none;}
+
+    /* Header */
+    .sidebar-head {
+      display:flex; align-items:center; gap:14px;
+      padding:6px 6px 22px;
+      border-bottom:1px solid var(--outline-v);
+      margin-bottom:14px;
+    }
+    .back-btn {
+      width:44px; height:44px; border-radius:50%;
+      background:none; border:none; cursor:pointer;
+      color:var(--on-surf-v);
+      display:flex; align-items:center; justify-content:center;
+      text-decoration:none; position:relative;
+      transition:background .2s;
+    }
+    .back-btn::before {
+      content:''; position:absolute; inset:0; border-radius:50%;
+      background:var(--on-surf); opacity:0; transition:opacity .2s;
+    }
+    .back-btn:hover::before{opacity:.08;}
+    .back-btn .material-symbols-outlined{font-size:24px;position:relative;}
+    .sidebar-title {
+      font-size:1.15rem; font-weight:500;
+      color:var(--on-surf); letter-spacing:.01em;
+    }
+
+    /* User card */
+    .sidebar-user {
+      display:flex; align-items:center; gap:14px;
+      padding:14px 16px; margin-bottom:14px;
+      border-radius:18px;
+      background:var(--primary-c);
+      border:1px solid rgba(208,188,255,.18);
+      cursor:pointer; text-decoration:none;
+      transition:background .2s;
+    }
+    .sidebar-user:hover{background:rgba(208,188,255,.26);}
+    .sidebar-avatar {
+      width:42px; height:42px; border-radius:50%;
+      background:var(--surf3);
+      border:2px solid rgba(208,188,255,.35);
+      display:flex; align-items:center; justify-content:center;
+      overflow:hidden; flex-shrink:0;
+    }
+    .sidebar-avatar img{width:100%;height:100%;object-fit:cover;display:none;}
+    .sidebar-avatar .material-symbols-outlined{font-size:24px;color:var(--primary);}
+    .sidebar-user-info{flex:1;min-width:0;}
+    .sidebar-username {
+      font-size:.95rem; font-weight:600;
+      color:var(--primary);
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
+    .sidebar-userrole{font-size:.78rem;color:rgba(208,188,255,.55);margin-top:2px;}
+
+    /* Stats */
+    .sidebar-stats {
+      display:grid; grid-template-columns:repeat(3,1fr);
+      gap:7px; padding:0 3px; margin-bottom:14px;
+    }
+    .stat-pill {
+      background:var(--surf1);
+      border:1px solid var(--outline-v);
+      border-radius:14px; padding:11px 6px; text-align:center;
+    }
+    .stat-pill .num{font-size:1.3rem;font-weight:600;color:var(--primary);}
+    .stat-pill .lbl{font-size:.65rem;color:var(--on-surf-d);text-transform:uppercase;letter-spacing:.08em;margin-top:3px;}
+
+    /* Nav buttons */
+    .nav-btn {
+      display:flex; align-items:center; gap:16px;
+      padding:13px 18px; border-radius:30px;
+      border:none; background:none;
+      color:var(--on-surf-v);
+      font-family:var(--font); font-size:.95rem; font-weight:500;
+      cursor:pointer; width:100%; text-align:left;
+      position:relative;
+      transition:color .2s;
+    }
+    .nav-btn::before {
+      content:''; position:absolute; inset:0; border-radius:30px;
+      background:var(--on-surf); opacity:0; transition:opacity .2s;
+    }
+    .nav-btn:hover::before{opacity:.07;}
+    .nav-btn.active {
+      background:var(--primary-c);
+      color:var(--primary);
+    }
+    .nav-btn.active .material-symbols-outlined {
+      font-variation-settings:'FILL' 1,'wght' 600,'GRAD' 0,'opsz' 24;
+    }
+    .nav-btn .material-symbols-outlined{font-size:22px;flex-shrink:0;position:relative;}
+    .nav-btn > span:not(.material-symbols-outlined){position:relative;}
+
+    .nav-sep{height:1px;background:var(--outline-v);margin:8px 6px;}
+    .sidebar-spacer{flex:1;}
+    .sidebar-ver{padding:10px 18px;font-size:.75rem;color:var(--on-surf-d);}
+
+    /* ══ CONTENT ══ */
+    .content{overflow-y:auto;height:100vh;padding:36px 48px;}
+    .content::-webkit-scrollbar{width:5px;}
+    .content::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px;}
+    .tab{display:none;}
+    .tab.active{display:block;}
+
+    /* Page header */
+    .panel-title {
+      font-size:2rem; font-weight:400;
+      color:var(--on-surf); letter-spacing:-.02em;
+      margin-bottom:6px;
+    }
+    .panel-sub {
+      font-size:.95rem; color:var(--on-surf-v);
+      margin-bottom:32px; line-height:1.5;
+    }
+
+    /* ══ SECTIONS ══ */
+    .section {
+      background:var(--surf1);
+      border-radius:24px;
+      padding:24px 28px;
+      border:1px solid var(--outline-v);
+      margin-bottom:14px;
+    }
+
+    /* Section label */
+    .sec-label {
+      display:flex; align-items:center; gap:9px;
+      font-size:.78rem; font-weight:600;
+      letter-spacing:.1em; text-transform:uppercase;
+      color:var(--primary);
+      margin-bottom:16px;
+    }
+    .sec-label .material-symbols-outlined{font-size:15px;}
+    .sec-sub {
+      font-size:.88rem; color:var(--on-surf-v);
+      margin-bottom:16px;
+      display:flex; align-items:center; gap:7px;
+      line-height:1.5;
+    }
+    .sec-sub .material-symbols-outlined{font-size:16px;color:var(--on-surf-d);flex-shrink:0;}
+    .row{display:flex;gap:10px;align-items:center;}
+
+    /* ══ INPUTS ══ */
+    .field {
+      flex:1; height:56px;
+      border-radius:6px 6px 0 0;
+      border:none; border-bottom:1.5px solid var(--outline);
+      background:var(--surf2);
+      color:var(--on-surf);
+      padding:0 18px; outline:none;
+      font-size:.95rem; font-family:var(--font);
+      transition:border-color .2s, background .2s;
+    }
+    .field:focus {
+      border-bottom:2px solid var(--primary);
+      background:var(--surf3);
+    }
+    .field::placeholder{color:var(--on-surf-d);}
+
+    .file-field {
+      flex:1; height:56px;
+      border-radius:6px 6px 0 0;
+      border:none; border-bottom:1.5px solid var(--outline);
+      background:var(--surf2);
+      color:var(--on-surf);
+      font-family:var(--font); font-size:.9rem;
+      cursor:pointer; overflow:hidden;
+    }
+    .file-field::-webkit-file-upload-button {
+      height:100%; padding:0 22px; border:0;
+      background:rgba(207,188,255,.2); color:var(--server);
+      font-family:var(--font); font-weight:600;
+      font-size:.78rem; text-transform:uppercase;
+      letter-spacing:.08em; cursor:pointer;
+      transition:background .2s;
+    }
+    .file-field:hover::-webkit-file-upload-button{background:rgba(207,188,255,.34);}
+
+    /* ══ BUTTONS ══ */
+    .iconbtn {
+      height:44px; min-width:44px;
+      background:var(--surf2);
+      border:none; border-radius:50%;
+      cursor:pointer;
+      display:inline-flex; align-items:center; justify-content:center;
+      color:var(--on-surf-v); flex-shrink:0;
+      position:relative; overflow:hidden;
+      transition:color .2s;
+    }
+    .iconbtn::before{
+      content:''; position:absolute; inset:0;
+      background:var(--on-surf); opacity:0; transition:opacity .2s;
+    }
+    .iconbtn:hover::before{opacity:.08;}
+    .iconbtn:active::before{opacity:.14;}
+    .iconbtn .material-symbols-outlined{font-size:22px !important;position:relative;}
+    .iconbtn.primary{background:var(--primary-c);}
+    .iconbtn.primary .material-symbols-outlined{color:var(--primary);}
+    .iconbtn.danger{background:var(--error-c);}
+    .iconbtn.danger .material-symbols-outlined{color:var(--error);}
+
+    /* Filled button */
+    .btn-filled {
+      display:inline-flex; align-items:center; gap:10px;
+      padding:0 28px; height:48px; border-radius:24px;
+      border:none; cursor:pointer;
+      font-family:var(--font); font-size:.95rem; font-weight:500;
+      letter-spacing:.01em; position:relative; overflow:hidden;
+      transition:box-shadow .2s;
+    }
+    .btn-filled::before{
+      content:''; position:absolute; inset:0;
+      opacity:0; transition:opacity .2s;
+    }
+    .btn-filled:hover::before{opacity:.1;}
+    .btn-filled.primary{background:var(--primary);color:var(--on-primary);}
+    .btn-filled.primary::before{background:#fff;}
+    .btn-filled.error{background:var(--error-c);color:var(--error);}
+    .btn-filled.error::before{background:var(--error);}
+    .btn-filled .material-symbols-outlined{font-size:20px;position:relative;}
+    .btn-filled span:not(.material-symbols-outlined){position:relative;}
+
+    /* Tonal button */
+    .btn-tonal {
+      display:inline-flex; align-items:center; gap:10px;
+      padding:0 28px; height:48px; border-radius:24px;
+      border:none; cursor:pointer;
+      background:var(--surf2); color:var(--on-surf-v);
+      font-family:var(--font); font-size:.95rem; font-weight:500;
+      transition:background .2s;
+    }
+    .btn-tonal:hover{background:var(--surf3);}
+    .btn-tonal .material-symbols-outlined{font-size:20px;}
+
+    /* Legacy compat */
+    .btn-text{display:inline-flex;align-items:center;gap:10px;padding:0 24px;height:48px;border-radius:24px;border:none;cursor:pointer;font-family:var(--font);font-size:.95rem;font-weight:500;transition:filter .2s;}
+    .btn-text.primary{background:var(--primary);color:var(--on-primary);}
+    .btn-text.danger{background:var(--error-c);color:var(--error);}
+    .btn-text:hover{filter:brightness(1.08);}
+    .btn-text .material-symbols-outlined{font-size:20px;}
+
+    /* Status */
+    .status{font-size:.85rem;font-weight:500;min-height:20px;margin-top:12px;display:flex;align-items:center;gap:7px;line-height:1.4;}
+    .status.success{color:var(--local);}
+    .status.error{color:var(--error);}
+    .status.warn{color:var(--url);}
+    .status.info{color:var(--primary);}
+    .status .material-symbols-outlined{font-size:17px;}
+
+    /* ══ LISTS ══ */
+    .list{list-style:none;display:flex;flex-direction:column;gap:3px;}
+    .item {
+      display:flex; align-items:center; gap:14px;
+      padding:14px 18px; border-radius:16px;
+      transition:background .15s;
+    }
+    .item:hover{background:rgba(255,255,255,.04);}
+    .item-left{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;}
+    .item-name {
+      font-size:.95rem; font-weight:500;
+      display:flex; align-items:center; gap:10px;
+      color:var(--on-surf); overflow:hidden;
+    }
+    .item-name span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .item-meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:2px;}
+
+    /* Chips */
+    .pill {
+      padding:3px 12px; border-radius:8px;
+      background:var(--surf3);
+      color:var(--on-surf-v);
+      font-size:.72rem; font-weight:600; letter-spacing:.04em;
+    }
+    .dot-server{color:var(--server) !important;}
+    .dot-url   {color:var(--url)    !important;}
+    .dot-local {color:var(--local)  !important;}
+    .dot-epg   {color:var(--epg)    !important;}
+    .pill.dot-server{background:rgba(207,188,255,.14);color:var(--server);}
+    .pill.dot-url   {background:rgba(255,224,130,.10);color:var(--url);}
+    .pill.dot-local {background:rgba(168,218,181,.10);color:var(--local);}
+    .pill.dot-epg   {background:rgba(128,203,196,.10);color:var(--epg);}
+    .dot-icon,.dot-status{font-size:9px !important;vertical-align:middle;}
+
+
+    /* Upload button — Material filled tonal */
+    .btn-upload {
+      display:inline-flex; align-items:center; gap:10px;
+      padding:0 28px; height:52px; border-radius:16px;
+      border:1.5px dashed rgba(168,218,181,.35);
+      background:rgba(168,218,181,.07);
+      color:var(--local);
+      font-family:var(--font); font-size:.95rem; font-weight:600;
+      cursor:pointer; letter-spacing:.01em;
+      transition:background .2s, border-color .2s;
+      width:100%; justify-content:center;
+    }
+    .btn-upload:hover {
+      background:rgba(168,218,181,.14);
+      border-color:rgba(168,218,181,.6);
+    }
+    .btn-upload .material-symbols-outlined { font-size:22px; }
+
+
+    /* Cestini — grigi di default, rossi solo hover */
+    .iconbtn.del-btn .material-symbols-outlined { color: var(--on-surf-d) !important; }
+    .iconbtn.del-btn:hover { background: var(--error-c) !important; }
+    .iconbtn.del-btn:hover .material-symbols-outlined { color: var(--error) !important; }
+
+    /* EPG */
+    .epg-online{animation:epgPulse 2.2s ease-in-out infinite;}
+    .epg-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
+
+    /* Log */
+    .log-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;}
+    .log-actions{display:flex;gap:10px;}
+    .log-console {
+      border-radius:14px;
+      background:var(--bg);
+      border:1px solid var(--outline-v);
+      padding:16px; height:240px; overflow:auto;
+      font-family:'Cascadia Mono',monospace;
+      font-size:13px; line-height:1.6;
+      color:var(--on-surf-v); white-space:pre-wrap;
+    }
+    .log-line.warn {color:var(--url);}
+    .log-line.error{color:var(--error);}
+    .log-line.ok   {color:var(--local);}
+    .log-line .t{opacity:.4;margin-right:8px;}
+
+    /* Profile */
+    .profile-hero{display:flex;align-items:center;gap:22px;margin-bottom:26px;}
+    .avatar-wrap{position:relative;width:88px;height:88px;cursor:pointer;flex-shrink:0;}
+    .avatar-circle {
+      width:88px; height:88px; border-radius:50%;
+      background:var(--surf3);
+      border:2px solid var(--outline);
+      display:flex; align-items:center; justify-content:center;
+      overflow:hidden; transition:border-color .2s;
+    }
+    .avatar-wrap:hover .avatar-circle{border-color:var(--primary);}
+    .avatar-circle img{width:100%;height:100%;object-fit:cover;display:none;}
+    .avatar-icon{font-size:44px !important;color:var(--on-surf-d);}
+    .avatar-overlay {
+      position:absolute;inset:0;border-radius:50%;
+      background:rgba(103,80,164,.55);
+      display:flex;align-items:center;justify-content:center;
+      opacity:0;transition:opacity .2s;
+    }
+    .avatar-wrap:hover .avatar-overlay{opacity:1;}
+    .avatar-overlay .material-symbols-outlined{font-size:26px;color:#fff;}
+    .profile-name-display{font-size:1.6rem;font-weight:400;color:var(--on-surf);}
+    .profile-role{font-size:.88rem;color:var(--on-surf-d);margin-top:3px;}
+    .profile-fields{display:flex;flex-direction:column;gap:14px;}
+
+    /* Stats grid (profile tab) */
+    .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+    .stat-card {
+      background:var(--surf1);
+      border:1px solid var(--outline-v);
+      border-radius:18px; padding:18px; text-align:center;
+    }
+    .stat-card .num{font-size:2.2rem;font-weight:400;color:var(--primary);}
+    .stat-card .lbl{font-size:.7rem;color:var(--on-surf-d);text-transform:uppercase;letter-spacing:.09em;margin-top:5px;}
+
+    /* Reset */
+    .reset-section{background:rgba(242,184,184,.05);border-color:rgba(242,184,184,.12);}
+    .warning{color:var(--url);}
+    .accent{color:var(--primary);}
+
+    /* About */
+    .about-logo {
+      width:60px; height:60px;
+      background:linear-gradient(135deg,var(--primary) 0%,#6750a4 100%);
+      border-radius:18px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:24px; font-weight:700; color:var(--on-primary);
+      letter-spacing:-1px; margin-bottom:18px;
+    }
+    .info-row {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:16px 0;
+      border-bottom:1px solid var(--outline-v);
+      font-size:.95rem; line-height:1.4;
+    }
+    .info-row:last-child{border-bottom:none;}
+    .info-row .lbl{color:var(--on-surf-v);}
+    .info-row .val{color:var(--on-surf);font-weight:500;}
+
+  /* ══ MOBILE RESPONSIVE ══ */
+  @media (max-width: 767px) {
+
+    html, body { overflow: hidden; }
+
+    /* Layout: stack verticale */
+    .layout {
+      grid-template-columns: 1fr;
+      height: 100dvh;
+      display: flex; flex-direction: column;
+    }
+
+    /* Sidebar → bottom tab bar */
+    .sidebar {
+      order: 2;
+      flex-direction: row;
+      width: 100%;
+      height: auto;
+      border-right: none;
+      border-top: 1px solid var(--outline-v);
+      padding: 0;
+      gap: 0;
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    /* Nascondi elementi sidebar non necessari su mobile */
+    .sidebar-user,
+    .sidebar-stats,
+    .nav-sep,
+    .sidebar-spacer,
+    .sidebar-ver { display: none; }
+
+    /* sidebar-head → topbar mobile */
+    .sidebar-head {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: 56px; z-index: 200;
+      background: var(--surface);
+      border-bottom: 1px solid var(--outline-v);
+      padding: 0 8px;
+      flex-direction: row; align-items: center;
+      margin-bottom: 0;
+      border-bottom: 1px solid var(--outline-v);
+    }
+    .sidebar-title { font-size: 1rem; font-weight: 600; }
+
+    /* Nav buttons → tab icons */
+    .nav-btn {
+      flex: 1;
+      flex-direction: column;
+      gap: 2px;
+      padding: 8px 4px;
+      border-radius: 0;
+      font-size: .6rem;
+      height: 56px;
+      justify-content: center;
+    }
+    .nav-btn .material-symbols-outlined { font-size: 22px; }
+    .nav-btn > span:not(.material-symbols-outlined) { font-size: .6rem; }
+    .nav-btn.active {
+      background: transparent;
+      color: var(--primary);
+    }
+    .nav-btn.active .material-symbols-outlined {
+      font-variation-settings: 'FILL' 1,'wght' 600,'GRAD' 0,'opsz' 24;
+    }
+
+    /* Content area */
+    .content {
+      order: 1;
+      flex: 1;
+      height: 0;
+      padding: 72px 16px 8px;
+      overflow-y: auto;
+    }
+
+    /* Panel titles */
+    .panel-title { font-size: 1.4rem; margin-bottom: 4px; }
+    .panel-sub   { font-size: .82rem; margin-bottom: 20px; }
+
+    /* Sections */
+    .section { padding: 16px; border-radius: 16px; }
+
+    /* Input fields */
+    .field { font-size: .88rem; }
+    .row { flex-wrap: wrap; gap: 8px; }
+
+    /* Stats grid */
+    .stats-grid { grid-template-columns: repeat(3,1fr); gap: 8px; }
+    .stat-card .num { font-size: 1.6rem; }
+
+    /* Profile hero */
+    .profile-hero { flex-direction: column; align-items: flex-start; gap: 12px; }
+
+    /* Info rows */
+    .info-row { flex-direction: column; gap: 2px; padding: 12px 0; }
+    .info-row .val { font-size: .85rem; }
+
+    /* Btn upload */
+    .btn-upload { height: 44px; font-size: .85rem; }
+
+    /* Log console */
+    .log-console { height: 160px; }
+
+    /* About stats */
+    .about-stats-grid { grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+    /* EPG header */
+    .epg-header { flex-direction: column; gap: 8px; align-items: flex-start; }
+
+    /* Buttons row */
+    .btn-filled, .btn-tonal, .btn-text { height: 40px; padding: 0 20px; font-size: .88rem; }
+
+    /* Item list */
+    .item { padding: 10px 12px; }
+    .item-name { font-size: .88rem; }
+    .item-meta { flex-wrap: wrap; }
+
+    /* About logo */
+    .about-logo { width: 48px; height: 48px; font-size: 20px; border-radius: 14px; }
+  }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ── Sidebar ── -->
+  <nav class="sidebar">
+    <div class="sidebar-head">
+      <a href="index.html" class="back-btn"><span class="material-symbols-outlined">arrow_back</span></a>
+      <span class="sidebar-title">Settings</span>
+    </div>
+
+    <!-- User card -->
+    <div class="sidebar-user" onclick="showTab('profile',document.querySelector('[data-tab=profile]'))">
+      <div class="sidebar-avatar">
+        <img id="sidebarAvatarImg" src="" alt="">
+        <span class="material-symbols-outlined">person</span>
+      </div>
+      <div class="sidebar-user-info">
+        <div class="sidebar-username" id="sidebarUsername">Guest</div>
+        <div class="sidebar-userrole">Tap to edit profile</div>
+      </div>
+    </div>
+
+    <!-- Quick stats -->
+    <div class="sidebar-stats">
+      <div class="stat-pill"><div class="num" id="sidebarPlCount">0</div><div class="lbl">Lists</div></div>
+      <div class="stat-pill"><div class="num" id="sidebarChCount">0</div><div class="lbl">Channels</div></div>
+      <div class="stat-pill"><div class="num" id="sidebarEpgCount">0</div><div class="lbl">EPG</div></div>
+    </div>
+
+    <button class="nav-btn active" data-tab="playlists" onclick="showTab('playlists',this)"><span class="material-symbols-outlined">playlist_play</span>Playlists</button>
+    <button class="nav-btn" data-tab="epg" onclick="showTab('epg',this)"><span class="material-symbols-outlined">calendar_today</span>EPG Guide</button>
+    <button class="nav-btn" data-tab="logs" onclick="showTab('logs',this)"><span class="material-symbols-outlined">terminal</span>Live Logs</button>
+    <div class="nav-sep"></div>
+    <button class="nav-btn" data-tab="profile" onclick="showTab('profile',this)"><span class="material-symbols-outlined">account_circle</span>Profile</button>
+    <button class="nav-btn" data-tab="reset" onclick="showTab('reset',this)"><span class="material-symbols-outlined">delete_sweep</span>Reset</button>
+    <button class="nav-btn" data-tab="about" onclick="showTab('about',this)"><span class="material-symbols-outlined">info</span>About</button>
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-ver">XVB3 v3.0</div>
+  </nav>
+
+  <!-- ── Content ── -->
+  <div class="content">
+
+    <!-- PLAYLISTS -->
+    <div class="tab active" id="tab-playlists">
+      <div class="panel-title">Playlists</div>
+      <div class="panel-sub">Manage your M3U playlists.</div>
+
+      <div class="section">
+        <div class="sec-label"><span class="material-symbols-outlined dot-icon dot-server" style="font-size:10px">lens</span>Download from XVB server</div>
+        <div class="sec-sub"><span class="material-symbols-outlined">verified</span>Verified playlists for improved compatibility.</div>
+        <ul class="list" id="serverPlaylistList"></ul>
+        <div class="status" id="statusServer"></div>
+      </div>
+
+      <div class="section">
+        <div class="sec-label"><span class="material-symbols-outlined dot-icon dot-url" style="font-size:10px">lens</span>Add by URL</div>
+        <div class="sec-sub"><span class="material-symbols-outlined">info</span>Direct .m3u links only.</div>
+        <div class="row">
+          <input class="field" id="urlInput" type="text" placeholder="https://server.com/playlist.m3u">
+          <button class="iconbtn primary" id="btnAddUrl"><span class="material-symbols-outlined">add_link</span></button>
+        </div>
+        <div class="status" id="statusUrl"></div>
+      </div>
+
+      <div class="section">
+        <div class="sec-label"><span class="material-symbols-outlined dot-icon dot-local" style="font-size:10px">lens</span>Upload local file</div>
+        <div class="sec-sub"><span class="material-symbols-outlined">info</span>M3U format required.</div>
+        <div class="row">
+          <button class="btn-upload" onclick="document.getElementById('fileInput').click()">
+            <span class="material-symbols-outlined">upload_file</span>
+            Choose .m3u file
+          </button>
+          <input type="file" id="fileInput" accept=".m3u,.m3u8" style="display:none">
+        </div>
+        <div class="status" id="statusFile"></div>
+      </div>
+
+      <div class="section">
+        <div class="sec-label"><span class="material-symbols-outlined" style="font-size:14px">playlist_add_check</span>Saved playlists</div>
+        <ul class="list" id="playlistList"></ul>
+        <div class="status" id="statusList"></div>
+      </div>
+    </div>
+
+    <!-- EPG -->
+    <div class="tab" id="tab-epg">
+      <div class="panel-title">EPG Guide</div>
+      <div class="panel-sub">Download built-in guides or add your own XMLTV sources.</div>
+
+      <!-- Built-in EPG — download like server playlists -->
+      <div class="section">
+        <div class="sec-label" style="justify-content:space-between">
+          <span><span class="material-symbols-outlined dot-icon dot-server" style="font-size:10px">lens</span>Built-in EPG sources</span>
+          <button class="iconbtn" id="btnDownloadEpg" title="Open EPG repo"><span class="material-symbols-outlined">open_in_new</span></button>
+        </div>
+        <div class="sec-sub"><span class="material-symbols-outlined">verified</span>Verified guides — click to download and activate.</div>
+        <ul class="list" id="epgBuiltinList"></ul>
+      </div>
+
+      <!-- Add custom URL -->
+      <div class="section">
+        <div class="sec-label"><span class="material-symbols-outlined dot-icon dot-epg" style="font-size:10px">lens</span>Add custom EPG source</div>
+        <div class="sec-sub"><span class="material-symbols-outlined">info</span>Add your own XMLTV URL (.xml or .xml.gz).</div>
+        <div class="row" style="margin-bottom:8px">
+          <input class="field" id="epgUrlInput" type="text" placeholder="https://example.com/epg.xml">
+          <input class="field" id="epgNameInput" type="text" placeholder="Name (optional)" style="max-width:180px">
+          <button class="iconbtn primary" onclick="addCustomEpg()"><span class="material-symbols-outlined">add</span></button>
+        </div>
+        <div class="status" id="statusEpg"></div>
+      </div>
+
+      <!-- Saved EPG sources (built-in downloaded + custom) -->
+      <div class="section">
+        <div class="sec-label"><span class="material-symbols-outlined" style="font-size:14px">check_circle</span>Saved EPG sources</div>
+        <ul class="list" id="savedEpgList"></ul>
+        <div class="status" id="statusEpgSaved"></div>
+      </div>
+    </div>
+
+    <!-- LOGS -->
+    <div class="tab" id="tab-logs">
+      <div class="panel-title">Live Logs</div>
+      <div class="panel-sub">Real-time logs via BroadcastChannel.</div>
+      <div class="section">
+        <div class="log-head">
+          <div class="sec-sub" style="margin:0"><span class="material-symbols-outlined">settings_input_antenna</span>Listening on <span class="accent" id="logChannelName">xvb_logs</span></div>
+          <div class="log-actions">
+            <button class="iconbtn" id="btnLogClear"><span class="material-symbols-outlined">delete</span></button>
+            <button class="iconbtn" id="btnLogCopy"><span class="material-symbols-outlined">content_copy</span></button>
+          </div>
+        </div>
+        <div class="log-console" id="logConsole"></div>
+      </div>
+    </div>
+
+    <!-- PROFILE -->
+    <div class="tab" id="tab-profile">
+      <div class="panel-title">Profile</div>
+      <div class="panel-sub">Your avatar and name shown in the home screen.</div>
+
+      <!-- Stats -->
+      <div class="stats-grid" id="profileStats">
+        <div class="stat-card"><div class="num" id="profilePlCount">0</div><div class="lbl">Playlists</div></div>
+        <div class="stat-card"><div class="num" id="profileChCount">0</div><div class="lbl">Channels</div></div>
+        <div class="stat-card"><div class="num" id="profileEpgCount">0</div><div class="lbl">EPG sources</div></div>
+      </div>
+
+      <div class="section">
+        <div class="profile-hero">
+          <div class="avatar-wrap" onclick="document.getElementById('settingsAvatarInput').click()">
+            <div class="avatar-circle">
+              <img id="settingsAvatarImg" src="" alt="">
+              <span class="material-symbols-outlined avatar-icon">person</span>
+            </div>
+            <div class="avatar-overlay"><span class="material-symbols-outlined">photo_camera</span></div>
+          </div>
+          <input type="file" id="settingsAvatarInput" accept="image/*" style="display:none">
+          <div>
+            <div class="profile-name-display" id="profileNameDisplay">Guest</div>
+            <div class="profile-role">XVB3 User</div>
+          </div>
+        </div>
+
+        <div class="profile-fields">
+          <input type="text" id="settingsNameInput" class="field" placeholder="Your name" maxlength="32" style="max-width:280px">
+          <div style="display:flex;gap:10px;align-items:center">
+            <button class="btn-text primary" onclick="saveProfile()"><span class="material-symbols-outlined">check</span>Save changes</button>
+            <button class="btn-tonal" onclick="removeAvatar()"><span class="material-symbols-outlined">no_photography</span>Remove photo</button>
+          </div>
+          <div class="status" id="statusProfile"></div>
+        </div>
+      </div>
+
+      <!-- Device Info -->
+      <div class="section">
+        <div class="sec-label"><span class="material-symbols-outlined" style="font-size:15px">devices</span>Device Info</div>
+        <div style="border-radius:16px;overflow:hidden;border:1px solid var(--outline-v)">
+          <div class="info-row">
+            <span class="lbl">Browser</span>
+            <span class="val" id="infoBrowser" style="display:flex;align-items:center;gap:8px">—</span>
+          </div>
+          <div class="info-row">
+            <span class="lbl">OS</span>
+            <span class="val" id="infoOS">—</span>
+          </div>
+          <div class="info-row">
+            <span class="lbl">IP Address</span>
+            <span class="val" id="infoIP" style="font-family:'Cascadia Mono',monospace;font-size:.85rem">—</span>
+          </div>
+          <div class="info-row">
+            <span class="lbl">Country</span>
+            <span class="val" id="infoCountry" style="display:flex;align-items:center;gap:8px">—</span>
+          </div>
+          <div class="info-row">
+            <span class="lbl">City</span>
+            <span class="val" id="infoCity">—</span>
+          </div>
+          <div class="info-row">
+            <span class="lbl">ISP</span>
+            <span class="val" id="infoISP" style="font-size:.85rem">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESET -->
+    <div class="tab" id="tab-reset">
+      <div class="panel-title">Reset & Maintenance</div>
+      <div class="panel-sub">Remove stored data and reset the player.</div>
+      <div class="section reset-section">
+        <div class="sec-sub warning"><span class="material-symbols-outlined">warning</span>Remove stored playlists and cached channels to resolve issues or reset the player.</div>
+        <div style="font-size:.82rem;color:var(--t2);margin-top:10px">
+          You have <span class="accent" id="totalPlaylists">0</span> playlists,
+          <span class="accent" id="totalChannels">0</span> channels cached,
+          <span class="accent" id="totalCustomEpg">0</span> custom EPG sources.
+        </div>
+        <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
+          <button class="btn-text danger" onclick="clearAllPlaylists()"><span class="material-symbols-outlined">delete_sweep</span>Clear all playlists</button>
+          <button class="btn-text danger" onclick="clearCustomEpg()"><span class="material-symbols-outlined">delete</span>Clear custom EPG</button>
+          <button class="btn-text danger" onclick="resetOnboarding()"><span class="material-symbols-outlined">restart_alt</span>Reset onboarding</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABOUT -->
+    <div class="tab" id="tab-about">
+      <div class="panel-title">About</div>
+      <div class="panel-sub">XVB3 — Your personal TV experience.</div>
+      <div class="section">
+        <img src="assets/icon.jpg" alt="XVB" style="width:72px;height:72px;border-radius:20px;display:block;margin-bottom:18px;box-shadow:0 4px 24px rgba(0,0,0,.4);">
+        <div style="font-size:1.4rem;font-weight:700;color:var(--on-surf);margin-bottom:2px;letter-spacing:-.01em">XVB3</div>
+        <div style="font-size:.85rem;color:var(--t2);margin-bottom:20px">Version 3.0</div>
+        <div style="border-radius:16px;overflow:hidden;border:1px solid var(--line)">
+          <div class="info-row"><span class="lbl">Version</span><span class="val">3.0</span></div>
+          <div class="info-row"><span class="lbl">Storage used</span><span class="val" id="aboutStorage">—</span></div>
+          <div class="info-row">
+            <span class="lbl">Developer</span>
+            <a href="https://github.com/jonathansanfilippo" target="_blank" style="color:var(--primary);font-weight:600;text-decoration:none;display:flex;align-items:center;gap:6px">
+              <span class="material-symbols-outlined" style="font-size:16px">open_in_new</span>
+              jonathansanfilippo
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Server Stats -->
+      <div class="section">
+        <div class="sec-label"><span class="material-symbols-outlined" style="font-size:15px">bar_chart</span>Server Stats</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+          <div class="stat-card">
+            <div class="num" id="aboutOnline" style="font-size:1.4rem;color:#4caf50">—</div>
+            <div class="lbl">Online now</div>
+          </div>
+          <div class="stat-card">
+            <div class="num" id="aboutUnique" style="font-size:1.4rem;color:#64b5f6">—</div>
+            <div class="lbl">Today's visitors</div>
+          </div>
+          <div class="stat-card">
+            <div class="num" id="aboutTotal" style="font-size:1.4rem;color:var(--primary)">—</div>
+            <div class="lbl">Total visitors</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" style="font-size:.8rem;color:var(--t2);line-height:1.7">
+        <div class="sec-label">Legal & responsible use</div>
+        XVB is a neutral playback tool: it does not provide channels, credentials, or content.
+        Use XVB only with streams you are authorized to access.
+        Avoid piracy or any method to bypass copyright protections.
+        <div style="margin-top:8px;color:var(--t3)">MIT License © 2026 Jonathan Sanfilippo</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  /* ── Storage keys — IDENTICHE v2.3 ── */
+  const PLAYLIST_INDEX_KEY_V2    = 'xvb.playlists.index.v2';
+  const PLAYLIST_ITEM_PREFIX_V2  = 'xvb.playlists.item.v2.';
+  const PLAYLIST_MIGRATED_FLAG_V2= 'xvb.playlists.migrated.v2';
+  const LOCAL_STORAGE_PLAYLISTS_KEY = 'dvb-K@8$dL%3vZ&nB1xR*';
+  const CHANNEL_CACHE_KEY        = 'dvb-m^7Y!zR4*P8&kQ3@h';
+  const AVATAR_KEY  = 'xvb3.avatar';
+  const NAME_KEY    = 'xvb3.username';
+  const CUSTOM_EPG_KEY = 'xvb3.custom_epg';
+
+  const SERVER_PLAYLISTS = [
+    { name:'xvb-it', url:'https://pub-14721d1e3298489d957154039b2733fd.r2.dev/playlists/xvb-it' },
+    { name:'xvb-uk', url:'https://pub-14721d1e3298489d957154039b2733fd.r2.dev/playlists/xvb-uk' },
+  ];
+
+  const BUILTIN_EPG = [
+    { label:'IT-EPG',       url:'https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-it.xml',         xmlPath:'epg/epg-it.xml',         ids:{icon:'epg-si-it',     sha:'epg-sha-it',     date:'epg-date-it',     msg:'epg-commit-msg-it'} },
+    { label:'UK-EPG',       url:'https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-uk.xml',         xmlPath:'epg/epg-uk.xml',         ids:{icon:'epg-si-uk',     sha:'epg-sha-uk',     date:'epg-date-uk',     msg:'epg-commit-msg-uk'} },
+    { label:'ES-EPG',       url:'https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-es.xml',         xmlPath:'epg/epg-es.xml',         ids:{icon:'epg-si-es',     sha:'epg-sha-es',     date:'epg-date-es',     msg:'epg-commit-msg-es'} },
+    { label:'FR-EPG',       url:'https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-fr.xml',         xmlPath:'epg/epg-fr.xml',         ids:{icon:'epg-si-fr',     sha:'epg-sha-fr',     date:'epg-date-fr',     msg:'epg-commit-msg-fr'} },
+    { label:'PlutoTV IT',   url:'https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-plutotv-it.xml', xmlPath:'epg/epg-plutotv-it.xml', ids:{icon:'epg-si-pluto',  sha:'epg-sha-pluto',  date:'epg-date-pluto',  msg:'epg-commit-msg-pluto'} },
+    { label:'Samsung TV+ IT', url:'https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-samsung-it.xml', xmlPath:'epg/epg-samsung-it.xml', ids:{icon:'epg-si-samsung',sha:'epg-sha-samsung',date:'epg-date-samsung',msg:'epg-commit-msg-samsung'} },
+  ];
+
+  /* ── Storage helpers (stesse chiavi v2.3) ── */
+  const _makeId=()=>'pl_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8);
+  const _itemKey=id=>PLAYLIST_ITEM_PREFIX_V2+id;
+  const _getIndex=()=>{try{const r=localStorage.getItem(PLAYLIST_INDEX_KEY_V2);const a=r?JSON.parse(r):[];return Array.isArray(a)?a:[];}catch{return[];}};
+  const _setIndex=arr=>localStorage.setItem(PLAYLIST_INDEX_KEY_V2,JSON.stringify(arr||[]));
+  const _writeItem=(id,data)=>localStorage.setItem(_itemKey(id),JSON.stringify(data));
+  const _readItem=id=>{try{const r=localStorage.getItem(_itemKey(id));return r?JSON.parse(r):null;}catch{return null;}};
+  const _guessName=url=>{try{const c=(url||'').split('#')[0].split('?')[0];return c.split('/').filter(Boolean).pop()||'playlist.m3u';}catch{return 'playlist.m3u';}};
+
+  function pl2_listIndex(){
+    try{
+      if(localStorage.getItem(PLAYLIST_MIGRATED_FLAG_V2)!=='1'){
+        const oldRaw=localStorage.getItem(LOCAL_STORAGE_PLAYLISTS_KEY);
+        if(oldRaw){let old=[];try{old=JSON.parse(oldRaw)||[];}catch{}const idx=_getIndex();const ex=new Set(idx.filter(x=>x&&x.type==='url').map(x=>x.url));old.forEach(url=>{url=(url||'').trim();if(!url||!url.startsWith('http')||ex.has(url))return;const id=_makeId(),n=_guessName(url);idx.push({id,type:'url',name:n,url,createdAt:Date.now()});_writeItem(id,{id,type:'url',name:n,url});ex.add(url);});_setIndex(idx);}
+        localStorage.setItem(PLAYLIST_MIGRATED_FLAG_V2,'1');
+      }
+    }catch{}
+    return _getIndex();
+  }
+  function pl2_addUrl(url,name){url=(url||'').trim();if(!url.startsWith('http'))return{ok:false,msg:'Invalid URL'};const idx=_getIndex();if(idx.some(x=>x&&x.type==='url'&&x.url===url))return{ok:false,msg:'Already saved'};const id=_makeId(),n=name||_guessName(url);idx.push({id,type:'url',name:n,url,createdAt:Date.now()});_setIndex(idx);_writeItem(id,{id,type:'url',name:n,url});return{ok:true,id};}
+  function pl2_addLocal(name,m3uText){if(!m3uText)return{ok:false};const id=_makeId(),idx=_getIndex();idx.push({id,type:'local',name:name||'local.m3u',createdAt:Date.now()});_setIndex(idx);_writeItem(id,{id,type:'local',name:name||'local.m3u',m3uText});return{ok:true,id};}
+  function pl2_remove(id){_setIndex(_getIndex().filter(x=>x&&x.id!==id));localStorage.removeItem(_itemKey(id));}
+  function pl2_clearAll(){_getIndex().forEach(x=>x&&x.id&&localStorage.removeItem(_itemKey(x.id)));localStorage.removeItem(PLAYLIST_INDEX_KEY_V2);localStorage.removeItem(PLAYLIST_MIGRATED_FLAG_V2);localStorage.removeItem(LOCAL_STORAGE_PLAYLISTS_KEY);localStorage.removeItem(CHANNEL_CACHE_KEY);}
+
+  /* ── EPG Storage ── */
+  const EPG_SAVED_KEY = 'xvb3.epg_saved'; // { url, name, type:'builtin'|'custom', gz:bool, savedAt }
+  function getEpgSaved(){try{const r=localStorage.getItem(EPG_SAVED_KEY);const a=r?JSON.parse(r):[];return Array.isArray(a)?a:[];}catch{return[];}}
+  function saveEpgSaved(arr){localStorage.setItem(EPG_SAVED_KEY,JSON.stringify(arr||[]));}
+  function getCustomEpg(){return getEpgSaved().filter(e=>e.type==='custom');}
+  function saveCustomEpg(arr){
+    // Mantieni i built-in, sostituisci i custom
+    const saved=getEpgSaved().filter(e=>e.type==='builtin');
+    saveEpgSaved([...saved,...arr]);
+  }
+
+  /* ── Broadcast ── */
+  const broadcast=()=>{try{const bc=new BroadcastChannel('xvb_playlists_v2');bc.postMessage({type:'changed',t:Date.now()});bc.close();}catch{}};
+  const looksLikeM3U=t=>/#EXTM3U/i.test(t||'');
+
+  /* ── Status ── */
+  function setStatus(id,msg,type='info'){
+    const el=document.getElementById(id);if(!el)return;
+    const icons={success:'check',error:'warning',warn:'warning_amber',info:'info'};
+    el.innerHTML=msg?`<span class="material-symbols-outlined">${icons[type]||'info'}</span>${msg}`:'';
+    el.className='status '+type;
+  }
+
+  /* ── Stats counters ── */
+  function getStats(){
+    const items=pl2_listIndex();
+    let ch=0;
+    items.forEach(it=>{const d=_readItem(it.id);const t=d?.m3uText||d?.content||'';const m=t.match(/#EXTINF/gi);if(m)ch+=m.length;});
+    const epg=getEpgSaved().length; // solo quante salvate, 0 di base
+    return{pl:items.length,ch,epg};
+  }
+  function calcStorage(){
+    let total=0;
+    for(const k in localStorage){if(Object.prototype.hasOwnProperty.call(localStorage,k))total+=(localStorage[k]?.length||0)*2;}
+    return(total/1024/1024).toFixed(2)+' MB';
+  }
+  function updateSidebarStats(){
+    const s=getStats();
+    ['sidebarPlCount','profilePlCount','totalPlaylists'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=s.pl;});
+    ['sidebarChCount','profileChCount','totalChannels'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=s.ch;});
+    ['sidebarEpgCount','profileEpgCount'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=s.epg;});
+    const tce=document.getElementById('totalCustomEpg');if(tce)tce.textContent=getEpgSaved().length;
+    const st=document.getElementById('aboutStorage');if(st)st.textContent=calcStorage();
+  }
+
+  /* ── Tab nav ── */
+  function showTab(name,btn){
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById('tab-'+name).classList.add('active');
+    if(btn)btn.classList.add('active');
+    updateSidebarStats();
+  }
+
+  /* ── Render server list ── */
+  function renderServer(){
+    const ul=document.getElementById('serverPlaylistList');if(!ul)return;ul.innerHTML='';
+    SERVER_PLAYLISTS.forEach(pl=>{
+      const li=document.createElement('li');li.className='item';
+      const btn=document.createElement('button');btn.className='iconbtn primary';btn.title='Download';
+      btn.innerHTML='<span class="material-symbols-outlined">cloud_download</span>';
+      btn.onclick=async()=>{
+        btn.innerHTML='<span class="material-symbols-outlined" style="animation:spin .8s linear infinite">progress_activity</span>';btn.disabled=true;
+        const res=pl2_addUrl(pl.url,pl.name);
+        if(res.ok){
+          try{const r=await fetch(pl.url,{cache:'no-store'});if(!r.ok)throw new Error('fetch');const text=await r.text();if(!looksLikeM3U(text))throw new Error('not_m3u');const item=_readItem(res.id);if(item){item.m3uText=text;_writeItem(res.id,item);}setStatus('statusServer',pl.name+' saved.','success');broadcast();renderSaved();updateSidebarStats();}
+          catch{pl2_remove(res.id);setStatus('statusServer','Download failed.','error');}
+        }else{setStatus('statusServer','Already saved.','warn');}
+        btn.innerHTML='<span class="material-symbols-outlined">cloud_download</span>';btn.disabled=false;
+      };
+      const left=document.createElement('div');left.className='item-left';
+      left.innerHTML=`<div class="item-name"><span class="material-symbols-outlined dot-icon dot-server">lens</span><span>${pl.name}</span></div><div class="item-meta"><span class="pill dot-server">XVB-SERVER</span></div>`;
+      li.appendChild(btn);li.appendChild(left);ul.appendChild(li);
+    });
+  }
+
+  /* ── Render saved playlists ── */
+  function renderSaved(){
+    const list=document.getElementById('playlistList');if(!list)return;
+    const items=pl2_listIndex().slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    list.innerHTML='';
+    if(!items.length){list.innerHTML='<div style="padding:20px;text-align:center;color:var(--t3);font-size:.85rem"><span class="material-symbols-outlined" style="font-size:32px;display:block;margin-bottom:8px">playlist_add</span>No playlists yet.</div>';return;}
+    items.forEach(it=>{
+      const li=document.createElement('li');li.className='item';
+      const isXvb=it.url&&(it.url.includes('jonathansanfilippo')||it.url.includes('xvb-server'));
+      const dotClass=it.type==='local'?'dot-local':isXvb?'dot-server':'dot-url';
+      const typeLabel=it.type==='local'?'LOCAL':isXvb?'XVB-SERVER':'URL';
+      const date=it.createdAt?new Date(it.createdAt).toLocaleDateString():'';
+      const left=document.createElement('div');left.className='item-left';
+      left.innerHTML=`<div class="item-name"><span class="material-symbols-outlined dot-icon ${dotClass}">lens</span><span>${it.name||'Playlist'}</span></div><div class="item-meta"><span class="pill ${dotClass}">${it.type==='local'?'LOCAL':'URL'}</span>${date?`<span class="pill">${date}</span>`:''}</div>`;
+      const actions=document.createElement('div');actions.style.cssText='display:flex;gap:6px;flex-shrink:0;';
+      if(it.type==='url'){
+        const ref=document.createElement('button');ref.className='iconbtn';ref.title='Refresh';
+        ref.innerHTML='<span class="material-symbols-outlined" style="color:var(--primary)">refresh</span>';
+        ref.onclick=async()=>{ref.innerHTML='<span class="material-symbols-outlined" style="animation:spin .8s linear infinite">progress_activity</span>';try{const r=await fetch(it.url,{cache:'no-store'});const text=await r.text();const item=_readItem(it.id);if(item){item.m3uText=text;_writeItem(it.id,item);}broadcast();setStatus('statusList','Refreshed.','success');updateSidebarStats();}catch{setStatus('statusList','Refresh failed.','error');}ref.innerHTML='<span class="material-symbols-outlined" style="color:var(--primary)">refresh</span>';};
+        actions.appendChild(ref);
+      }
+      const dl=document.createElement('button');dl.className='iconbtn';dl.title='Download .m3u';
+      dl.innerHTML='<span class="material-symbols-outlined" style="color:var(--local)">download</span>';
+      dl.onclick=()=>{const item=_readItem(it.id);const text=item?.m3uText||item?.content||'';if(!text){setStatus('statusList','No content. Refresh first.','warn');return;}const blob=new Blob([text],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(it.name||'playlist').replace(/[^a-z0-9_\-\.]/gi,'_')+'.m3u';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);};
+      actions.appendChild(dl);
+      const del=document.createElement('button');del.className='iconbtn del-btn';del.title='Delete';
+      del.innerHTML='<span class="material-symbols-outlined" style="color:var(--on-surf-v)">delete</span>';
+      del.onclick=()=>{if(!confirm(`Delete "${it.name}"?`))return;pl2_remove(it.id);broadcast();renderSaved();updateSidebarStats();};
+      actions.appendChild(del);
+      li.appendChild(left);li.appendChild(actions);list.appendChild(li);
+    });
+  }
+
+  /* ── Add URL ── */
+  document.getElementById('btnAddUrl').onclick=async()=>{
+    const input=document.getElementById('urlInput');const url=(input?.value||'').trim();
+    if(!url){setStatus('statusUrl','Enter a URL.','warn');return;}
+    if(!url.startsWith('http')){setStatus('statusUrl','Only http/https URLs.','error');return;}
+    setStatus('statusUrl','Loading…','info');
+    const res=pl2_addUrl(url);if(!res.ok){setStatus('statusUrl',res.msg,'warn');return;}
+    try{const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const text=await r.text();if(!looksLikeM3U(text))throw new Error('Not a valid M3U');const item=_readItem(res.id);if(item){item.m3uText=text;_writeItem(res.id,item);}input.value='';setStatus('statusUrl','Saved.','success');broadcast();renderSaved();updateSidebarStats();}
+    catch(e){pl2_remove(res.id);setStatus('statusUrl','Error: '+e.message,'error');}
+  };
+
+  /* ── File upload ── */
+  document.getElementById('fileInput').addEventListener('change',(e)=>{
+    const file=e.target.files?.[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=(ev)=>{const text=ev.target.result;if(!looksLikeM3U(text)){setStatus('statusFile','Not a valid M3U.','error');return;}const res=pl2_addLocal(file.name,text);if(res.ok){setStatus('statusFile',file.name+' saved.','success');broadcast();renderSaved();updateSidebarStats();}else{setStatus('statusFile','Already saved.','warn');}e.target.value='';};
+    reader.onerror=()=>setStatus('statusFile','File read failed.','error');
+    reader.readAsText(file);
+  });
+
+  /* ── Clear all ── */
+
+  /* ── Custom EPG ── */
+  function addCustomEpg(){
+    const urlInput=document.getElementById('epgUrlInput');const nameInput=document.getElementById('epgNameInput');
+    const url=(urlInput?.value||'').trim();const name=(nameInput?.value||'').trim();
+    if(!url){setStatus('statusEpg','Enter a URL.','warn');return;}
+    if(!url.startsWith('http')){setStatus('statusEpg','Only http/https URLs.','error');return;}
+    const lower=url.toLowerCase().split('?')[0];
+    const isGz=lower.endsWith('.gz')||lower.endsWith('.gzip');
+    const isZip=lower.endsWith('.zip');
+    if(isZip){setStatus('statusEpg','.zip files are not supported. Use .xml or .xml.gz.','error');return;}
+    if(isGz){
+      if(typeof DecompressionStream==='undefined'){
+        setStatus('statusEpg','Your browser does not support .gz decompression. Use Chrome/Edge or a plain .xml URL.','error');
+        return;
+      }
+      if(!confirm('.gz files require in-browser decompression (Chrome/Edge only).\n\nContinue?'))return;
+    }
+    const list=getEpgSaved();
+    if(list.some(e=>e.url===url)){setStatus('statusEpg','Already added.','warn');return;}
+    list.push({url,name:name||_guessName(url),type:'custom',gz:isGz,savedAt:Date.now()});
+    saveEpgSaved(list);
+    urlInput.value='';nameInput.value='';
+    const msg=isGz?'EPG source added (.gz). Reload the app to apply.':'EPG source added. Reload the app to apply.';
+    setStatus('statusEpg',msg,'success');
+    renderSavedEpg();updateSidebarStats();broadcast();
+  }
+
+  function clearAllPlaylists(){
+    if(!confirm('Delete ALL playlists?'))return;
+    pl2_clearAll();broadcast();renderSaved();updateSidebarStats();
+    setStatus('statusList','All playlists removed.','info');
+  }
+  function clearCustomEpg(){
+    if(!confirm('Remove all saved EPG sources?'))return;
+    saveEpgSaved([]);
+    renderSavedEpg();renderBuiltinEpg();updateSidebarStats();
+    broadcast();
+    // Feedback visivo nel reset tab
+    const tce=document.getElementById('totalCustomEpg');if(tce)tce.textContent='0';
+  }
+
+  /* ── EPG status ── */
+  function renderBuiltinEpg(){
+    const ul=document.getElementById('epgBuiltinList');if(!ul)return;ul.innerHTML='';
+    BUILTIN_EPG.forEach(e=>{
+      const li=document.createElement('li');li.className='item';
+
+      const btn=document.createElement('button');btn.className='iconbtn primary';btn.title='Activate';
+      const saved=getEpgSaved();
+      const alreadySaved=saved.some(s=>s.url===e.url);
+      btn.innerHTML=alreadySaved
+        ?'<span class="material-symbols-outlined" style="color:var(--local)">check</span>'
+        :'<span class="material-symbols-outlined">cloud_download</span>';
+
+      btn.onclick=()=>{
+        const list=getEpgSaved();
+        if(list.some(s=>s.url===e.url)){
+          // Toggle off
+          saveEpgSaved(list.filter(s=>s.url!==e.url));
+          btn.innerHTML='<span class="material-symbols-outlined">cloud_download</span>';
+          renderSavedEpg();updateSidebarStats();broadcast();return;
+        }
+        list.push({url:e.url,name:e.label,type:'builtin',gz:false,savedAt:Date.now()});
+        saveEpgSaved(list);
+        btn.innerHTML='<span class="material-symbols-outlined" style="color:var(--local)">check</span>';
+        renderSavedEpg();updateSidebarStats();broadcast();
+        setStatus('statusEpgSaved',e.label+' activated.','success');
+        setTimeout(()=>setStatus('statusEpgSaved','','info'),3000);
+      };
+
+      const left=document.createElement('div');left.className='item-left';
+      left.innerHTML=`
+        <div class="item-name">
+          <span id="${e.ids.icon}" class="material-symbols-outlined dot-status dot-server">lens</span>
+          <span>${e.label}</span>
+          <span style="color:var(--t3);font-size:.75rem;margin-left:4px">SHA: <span id="${e.ids.sha}">—</span></span>
+        </div>
+        <div class="item-meta">
+          <span class="pill dot-server">XVB-SERVER</span>
+          <span class="pill"><span id="${e.ids.date}">checking…</span></span>
+          <span id="${e.ids.msg}" style="font-size:.72rem;color:var(--local)"></span>
+        </div>`;
+      li.appendChild(btn);li.appendChild(left);ul.appendChild(li);
+    });
+  }
+
+  function renderSavedEpg(){
+    const ul=document.getElementById('savedEpgList');if(!ul)return;
+    const list=getEpgSaved();ul.innerHTML='';
+    if(!list.length){ul.innerHTML='<div style="padding:16px;text-align:center;color:var(--t3);font-size:.82rem"><span class="material-symbols-outlined" style="font-size:28px;display:block;margin-bottom:8px">calendar_today</span>No EPG sources activated yet.<br>Download built-in guides or add a custom URL above.</div>';return;}
+    list.forEach((e,i)=>{
+      const li=document.createElement('li');li.className='item';
+      const dotClass=e.type==='builtin'?'dot-server':'dot-epg';
+      const tag=e.type==='builtin'?'XVB-SERVER':'CUSTOM EPG';
+      const left=document.createElement('div');left.className='item-left';
+      const gzBadge=e.gz?'<span class="pill" style="color:var(--url)">.gz</span>':'';
+      left.innerHTML=`<div class="item-name"><span>${e.name||e.url}</span></div><div class="item-meta"><span class="pill ${dotClass}">${tag}</span>${gzBadge}${e.url?`<span class="pill" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block">${e.url}</span>`:''}</div>`;
+      const del=document.createElement('button');del.className='iconbtn del-btn';del.title='Remove';
+      del.innerHTML='<span class="material-symbols-outlined" style="color:var(--on-surf-v)">delete</span>';
+      del.onclick=()=>{const l=getEpgSaved();l.splice(i,1);saveEpgSaved(l);renderSavedEpg();renderBuiltinEpg();updateSidebarStats();broadcast();};
+      li.appendChild(left);li.appendChild(del);ul.appendChild(li);
+    });
+  }
+  async function checkEpgStatus(xmlPath,label,ids){
+    const REPO='xvb-lab/xvb-epg',BRANCH='main';
+    const XML_URL=`https://raw.githubusercontent.com/${REPO}/${BRANCH}/${xmlPath}`;
+    const icon=document.getElementById(ids.icon);if(!icon)return;
+    icon.style.color='var(--url)';icon.classList.remove('epg-online');
+    const msgEl=document.getElementById(ids.msg);if(msgEl){msgEl.className='status warn';msgEl.textContent=`Checking ${label}…`;}
+    try{
+      const cr=await fetch(`https://api.github.com/repos/${REPO}/commits?path=${encodeURIComponent(xmlPath)}&sha=${BRANCH}&per_page=1`,{headers:{Accept:'application/vnd.github+json'}});
+      if(!cr.ok)throw new Error('API');
+      const cd=await cr.json();const commit=cd[0];
+      if(commit){const sha=document.getElementById(ids.sha);if(sha)sha.textContent=commit.sha.slice(0,7);const iso=commit.commit?.committer?.date||commit.commit?.author?.date;const date=document.getElementById(ids.date);if(date&&iso)date.textContent=new Date(iso).toLocaleString('en-GB');}
+      const xr=await fetch(XML_URL,{method:'HEAD',cache:'no-store'});
+      if(xr.ok){icon.style.color='#3fb950';icon.classList.add('epg-online');if(msgEl){msgEl.className='status success';msgEl.textContent=`${label} online.`;}}
+      else throw new Error('offline');
+    }catch(e){icon.style.color='#f85149';if(msgEl){msgEl.className='status error';msgEl.textContent=`${label} offline.`;}}
+  }
+  document.getElementById('btnDownloadEpg').onclick=()=>window.open('https://github.com/xvb-lab/xvb-epg','_blank');
+
+  /* ── Logs ── */
+  function logUI(msg,level='info'){
+    const el=document.getElementById('logConsole');if(!el)return;
+    const d=new Date();const t=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+    const line=document.createElement('div');line.className='log-line '+(level||'info');
+    line.innerHTML=`<span class="t">[${t}]</span>${String(msg||'')}`;
+    el.appendChild(line);el.scrollTop=el.scrollHeight;
+    if(el.children.length>300)el.removeChild(el.children[0]);
+  }
+  function initLogs(){
+    const chName=document.getElementById('logChannelName');if(chName)chName.textContent='xvb_logs';
+    if('BroadcastChannel' in window){const bc=new BroadcastChannel('xvb_logs');bc.onmessage=(ev)=>{const d=ev?.data;if(!d||d.type!=='log'||d.source==='playlist-manager')return;logUI((d.source?`[${d.source}] `:'')+d.msg,d.level||'info');};logUI('Log channel ready.','ok');}
+    else{logUI('BroadcastChannel not supported.','warn');}
+    document.getElementById('btnLogClear').onclick=()=>{const el=document.getElementById('logConsole');if(el)el.innerHTML='';logUI('Logs cleared.','info');};
+    document.getElementById('btnLogCopy').onclick=async()=>{const el=document.getElementById('logConsole');try{await navigator.clipboard.writeText(el?.innerText||'');logUI('Copied.','ok');}catch{logUI('Clipboard denied.','warn');}};
+  }
+
+  /* ── Profile ── */
+  function loadProfile(){
+    const a=localStorage.getItem(AVATAR_KEY);
+    const imgs=[document.getElementById('settingsAvatarImg'),document.getElementById('sidebarAvatarImg')];
+    imgs.forEach(img=>{if(a&&img){img.src=a;img.style.display='block';}});
+    const icons=document.querySelectorAll('.sidebar-avatar .material-symbols-outlined, #tab-profile .avatar-icon');
+    if(a)icons.forEach(ic=>ic.style.display='none');
+    const n=localStorage.getItem(NAME_KEY)||'Guest';
+    const nameInput=document.getElementById('settingsNameInput');if(nameInput)nameInput.value=n==='Guest'?'':n;
+    const nameDisplay=document.getElementById('profileNameDisplay');if(nameDisplay)nameDisplay.textContent=n;
+    const sidebarName=document.getElementById('sidebarUsername');if(sidebarName)sidebarName.textContent=n;
+  }
+  document.getElementById('settingsAvatarInput').addEventListener('change',(e)=>{
+    const file=e.target.files?.[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=(ev)=>{
+      const src=ev.target.result;
+      [document.getElementById('settingsAvatarImg'),document.getElementById('sidebarAvatarImg')].forEach(img=>{if(img){img.src=src;img.style.display='block';}});
+      document.querySelectorAll('.sidebar-avatar .material-symbols-outlined, #tab-profile .avatar-icon').forEach(ic=>ic.style.display='none');
+      try{localStorage.setItem(AVATAR_KEY,src);}catch(err){setStatus('statusProfile','Image too large for storage.','warn');}
+      try{const bc=new BroadcastChannel('xvb_profile');bc.postMessage({type:'profile_updated'});bc.close();}catch{}
+    };
+    reader.readAsDataURL(file);e.target.value='';
+  });
+  function saveProfile(){
+    const n=(document.getElementById('settingsNameInput').value||'').trim();
+    if(n){try{localStorage.setItem(NAME_KEY,n);}catch{}}
+    const nameDisplay=document.getElementById('profileNameDisplay');if(nameDisplay)nameDisplay.textContent=n||'Guest';
+    const sidebarName=document.getElementById('sidebarUsername');if(sidebarName)sidebarName.textContent=n||'Guest';
+    setStatus('statusProfile','Saved.','success');
+    setTimeout(()=>setStatus('statusProfile','','info'),3000);
+    // Notifica home
+    try{const bc=new BroadcastChannel('xvb_profile');bc.postMessage({type:'profile_updated'});bc.close();}catch{}
+  }
+  function removeAvatar(){
+    localStorage.removeItem(AVATAR_KEY);
+    [document.getElementById('settingsAvatarImg'),document.getElementById('sidebarAvatarImg')].forEach(img=>{if(img){img.src='';img.style.display='none';}});
+    document.querySelectorAll('.sidebar-avatar .material-symbols-outlined, #tab-profile .avatar-icon').forEach(ic=>ic.style.display='');
+    setStatus('statusProfile','Photo removed.','success');
+    setTimeout(()=>setStatus('statusProfile','','info'),3000);
+    try{const bc=new BroadcastChannel('xvb_profile');bc.postMessage({type:'profile_updated'});bc.close();}catch{}
+  }
+  function resetOnboarding(){
+    if(!confirm('Reset onboarding? This will also clear your profile name and avatar.'))return;
+    localStorage.removeItem('xvb3.firstRun');
+    localStorage.removeItem(AVATAR_KEY);
+    localStorage.removeItem(NAME_KEY);
+    // Reset UI
+    [document.getElementById('settingsAvatarImg'),document.getElementById('sidebarAvatarImg')].forEach(img=>{if(img){img.src='';img.style.display='none';}});
+    document.querySelectorAll('.sidebar-avatar .material-symbols-outlined, #tab-profile .avatar-icon').forEach(ic=>ic.style.display='');
+    const sidebarName=document.getElementById('sidebarUsername');if(sidebarName)sidebarName.textContent='Guest';
+    const nameDisplay=document.getElementById('profileNameDisplay');if(nameDisplay)nameDisplay.textContent='Guest';
+    const nameInput=document.getElementById('settingsNameInput');if(nameInput)nameInput.value='';
+    setStatus('statusProfile','Profile reset. Reload the app to see welcome screen.','success');
+  }
+
+  /* ── Device Info ── */
+  function detectBrowser() {
+    const ua = navigator.userAgent;
+    if (/Firefox\//.test(ua))         return { name: 'Firefox',        icon: 'https://upload.wikimedia.org/wikipedia/commons/a/a0/Firefox_logo%2C_2019.svg' };
+    if (/Edg\//.test(ua))             return { name: 'Microsoft Edge',  icon: 'https://upload.wikimedia.org/wikipedia/commons/9/98/Microsoft_Edge_logo_%282019%29.svg' };
+    if (/OPR\/|Opera\//.test(ua))     return { name: 'Opera',           icon: 'https://upload.wikimedia.org/wikipedia/commons/4/49/Opera_2015_icon.svg' };
+    if (/Chrome\//.test(ua))          return { name: 'Chrome',          icon: 'https://upload.wikimedia.org/wikipedia/commons/e/e1/Google_Chrome_icon_%28February_2022%29.svg' };
+    if (/Safari\//.test(ua))          return { name: 'Safari',          icon: 'https://upload.wikimedia.org/wikipedia/commons/5/52/Safari_browser_logo%2C_2007-2011.svg' };
+    return { name: 'Unknown', icon: null };
+  }
+
+  function detectOS() {
+    const ua = navigator.userAgent;
+    if (/Windows NT 10/.test(ua)) return 'Windows 10/11';
+    if (/Windows NT/.test(ua))    return 'Windows';
+    if (/Mac OS X/.test(ua))      return 'macOS';
+    if (/Android/.test(ua))       return 'Android';
+    if (/iPhone|iPad/.test(ua))   return 'iOS';
+    if (/Linux/.test(ua))         return 'Linux';
+    return 'Unknown';
+  }
+
+  async function loadDeviceInfo() {
+    // Browser
+    const browser = detectBrowser();
+    const browserEl = document.getElementById('infoBrowser');
+    if (browserEl) {
+      browserEl.innerHTML = browser.icon
+        ? `<img src="${browser.icon}" style="width:18px;height:18px;object-fit:contain"> ${browser.name}`
+        : browser.name;
+    }
+
+    // OS
+    const osEl = document.getElementById('infoOS');
+    if (osEl) osEl.textContent = detectOS();
+
+    // IP + geo
+    try {
+      const res = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
+      const d = await res.json();
+      const ipEl = document.getElementById('infoIP');
+      const countryEl = document.getElementById('infoCountry');
+      const cityEl = document.getElementById('infoCity');
+      const ispEl = document.getElementById('infoISP');
+      if (ipEl) ipEl.textContent = d.ip || '—';
+      if (countryEl) {
+        const flag = d.country_code
+          ? String.fromCodePoint(...[...d.country_code].map(c => 0x1F1A5 + c.charCodeAt(0)))
+          : '';
+        countryEl.textContent = `${flag} ${d.country_name || '—'}`;
+      }
+      if (cityEl) cityEl.textContent = d.city || '—';
+      if (ispEl) ispEl.textContent = d.org || '—';
+    } catch {}
+  }
+
+  /* ── Init — after DOM ready ── */
+  document.addEventListener('DOMContentLoaded', () => {
+    loadDeviceInfo();
+    // Fetch server stats per About
+    fetch('https://serverpi5.ddns.net/stats/status', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => {
+        const fmt = n => n >= 1000000 ? (n/1000000).toFixed(1).replace('.0','')+'M' : n >= 1000 ? (n/1000).toFixed(1).replace('.0','')+'K' : String(n);
+        const o = document.getElementById('aboutOnline');
+        const u = document.getElementById('aboutUnique');
+        const t = document.getElementById('aboutTotal');
+        if (o) o.textContent = fmt(d.onlineUsers    ?? 0);
+        if (u) u.textContent = fmt(d.uniqueVisitors ?? 0);
+        if (t) t.textContent = fmt(d.totalVisitors  ?? 0);
+      }).catch(() => {});
+    renderServer();
+    renderSaved();
+    renderBuiltinEpg();
+    renderSavedEpg();
+    loadProfile();
+    initLogs();
+    updateSidebarStats();
+    BUILTIN_EPG.forEach(e=>{
+      if(e.xmlPath) checkEpgStatus(e.xmlPath,e.label,e.ids);
+      else {
+        const icon=document.getElementById(e.ids.icon);
+        if(icon){fetch(e.url,{method:'HEAD',cache:'no-store'}).then(r=>{icon.style.color=r.ok?'#3fb950':'#f85149';if(r.ok)icon.classList.add('epg-online');}).catch(()=>{if(icon)icon.style.color='#f85149';});}
+      }
+    });
+    // Apri tab da URL param (?tab=profile ecc)
+    const tabParam=new URLSearchParams(window.location.search).get('tab');
+    if(tabParam){const btn=document.querySelector(`[data-tab="${tabParam}"]`);if(btn)showTab(tabParam,btn);}
+  });
+</script>
+</body>
+</html>

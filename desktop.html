@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="icon" type="image/jpeg" href="assets/icon.jpg">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XVB3</title>
+  <link rel="stylesheet" href="css/style.css">
+   <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     TOPBAR
+     ═══════════════════════════════════════ -->
+<div id="topbar">
+  <button id="avatarBtn" class="topbar-icon-btn" title="Profile">
+    <span class="material-symbols-outlined">account_circle</span>
+  </button>
+
+
+  <div id="topbarCategories">
+    <button class="topbar-icon-btn" id="catPrev">
+      <span class="material-symbols-outlined">chevron_left</span>
+    </button>
+    <nav id="categoriesBar"></nav>
+    <button class="topbar-icon-btn" id="catNext">
+      <span class="material-symbols-outlined">chevron_right</span>
+    </button>
+  </div>
+
+  <div id="searchWrap">
+    <span class="material-symbols-outlined">search</span>
+    <input id="searchInput" type="text" placeholder="Search channels..." autocomplete="off">
+  </div>
+
+  <a href="settings.html" id="settingsBtn" class="topbar-icon-btn" title="Settings">
+    <span class="material-symbols-outlined">settings</span>
+  </a>
+  <span id="topbarClock"></span>
+</div>
+
+<!-- Settings panel -->
+<div id="settingsPanel">
+  <div id="settingsPanelContent">
+    <h2>Settings</h2>
+    <p>Coming soon</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     HOME
+     ═══════════════════════════════════════ -->
+<div id="app">
+
+  <!-- Hero — sinistra -->
+  <aside id="hero">
+    <div id="heroBg"></div>
+    <div id="heroGradient"></div>
+
+    <div id="heroContent">
+      <img id="heroLogo" src="" alt="">
+      <div id="heroLogoText" style="display: none;"></div>
+      <div id="heroMeta"></div>
+      <!-- Stream type badges (HLS/DASH/audio) -->
+      <div id="heroStreamMeta"></div>
+      <h1 id="heroTitle"></h1>
+      <p id="heroDesc"></p>
+
+      <div id="heroProgressWrap">
+        <div id="heroProgressBar">
+          <div id="heroFill"></div>
+        </div>
+      </div>
+
+      <div id="heroNext"></div>
+
+      <div id="heroActions">
+        <button id="watchNowBtn">
+          <span class="material-symbols-outlined">play_arrow</span>
+          Watch now
+        </button>
+        <button id="heroFavBtn" class="hero-action-btn" title="Add to favourites">
+          <span class="material-symbols-outlined" id="heroFavIcon">favorite_border</span>
+        </button>
+       <button id="heroFullscreenBtn" class="hero-action-btn" title="Fullscreen">
+          <span class="material-symbols-outlined">open_in_full</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Contenuto — destra -->
+  <main id="content">
+
+    <!-- Card canali per categoria -->
+    <div id="channelsArea"></div>
+
+  </main>
+
+</div>
+
+<!-- ═══════════════════════════════════════
+     PLAYER OVERLAY
+     ═══════════════════════════════════════ -->
+<div id="playerOverlay">
+
+  <!-- Sfondo: immagine EPG sopra + gradient colore canale sotto -->
+  <div id="playerBg"></div>
+
+  <video id="videoEl" playsinline></video>
+
+  <iframe id="videoIframe"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+    allow="autoplay; fullscreen"
+    frameborder="0">
+  </iframe>
+  <div id="iframeShield"></div>
+
+  <!-- Floating REC badge -->
+  <div id="recFloatingBadge" class="rec-floating-badge" hidden style="display:none">
+    <div class="rec-floating-dot"></div>
+    <span id="recFloatingTimer">00:00</span>
+  </div>
+
+  <!-- Controlli player -->
+  <div id="playerControls">
+
+    <!-- TOP: back + logo + titolo separati + quality badge -->
+    <div id="playerTop">
+      <button id="playerClose" class="btn-icon" title="Close">
+        <span class="material-symbols-outlined ctrl-icon">arrow_back</span>
+      </button>
+      <div id="playerLogoWrap">
+        <img id="playerLogoImg" src="" alt="" style="display:none;">
+        <div id="playerLogoText" style="display:none;" class="dark-fallback"></div>
+      </div>
+      <span id="playerProgramTitle"></span>
+      <div id="qualityBadge" style="margin-left:auto"></div>
+    </div>
+
+    <!-- BOTTOM: progress + controlli in una pill -->
+    <div id="playerBottom">
+
+      <!-- Barra progresso -->
+      <div id="playerProgressWrap">
+        <div id="playerProgressBar">
+          <div id="playerProgress"></div>
+        </div>
+      </div>
+
+      <!-- Tre pill separate -->
+      <div id="playerBar">
+
+        <!-- PILL 1: solo play/pause -->
+        <div class=" yt-pill-play">
+          <button id="playerPlay" class="pbar-btn-play" title="Play/Pause">
+            <span class="material-symbols-outlined" id="playerPlayIcon">pause</span>
+          </button>
+        </div>
+
+        <!-- PILL 2: rewind + forward + timer -->
+        <div class="yt-pill">
+          <button id="playerRewind" class="pbar-btn" title="Rewind 10s">
+            <span class="material-symbols-outlined">replay_10</span>
+          </button>
+          <button id="playerForward" class="pbar-btn" title="Forward 10s">
+            <span class="material-symbols-outlined">forward_10</span>
+          </button>
+          <div id="playerTimeDisplay" class="pbar-time"></div>
+        </div>
+
+        <!-- PILL status (spinner / errore) — nessun sfondo -->
+        <div class="player-status-pill" id="playerStatusPill" hidden>
+          <div class="player-spinner-ring" id="playerSpinnerInner"></div>
+          <span id="playerStatusMsg" class="pbar-time" style="padding-left:8px;"></span>
+        </div>
+        <div class="yt-pill" style="margin-left:auto">
+          <div class="volume-container">
+            <button id="muteBtn" class="pbar-btn" title="Mute">
+              <span class="material-symbols-outlined" id="muteGlyph">volume_up</span>
+            </button>
+            <input type="range" id="volumeSlider" min="0" max="2" step="0.04" value="1" title="Volume / Boost">
+          </div>
+          <button id="playerPrevChan" class="pbar-btn" title="Previous Channel">
+            <span class="material-symbols-outlined">skip_previous</span>
+          </button>
+          <button id="playerNextChan" class="pbar-btn" title="Next Channel">
+            <span class="material-symbols-outlined">skip_next</span>
+          </button>
+          <button id="speedBtn" class="pbar-btn pbar-speed" title="Playback speed">
+            <span id="speedLabel">1×</span>
+          </button>
+          <button id="recordBtn" class="pbar-btn pbar-rec" title="Record">
+            <span id="recordIcon" class="material-symbols-outlined">radio_button_checked</span>
+            <span id="recordTimer"></span>
+          </button>
+          <button id="fullScreenBtn" class="pbar-btn" title="Fullscreen">
+            <span class="material-symbols-outlined">open_in_full</span>
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Floating REC badge (quando player è chiuso) -->
+    <div id="recFloatingBadge" class="rec-floating-badge" hidden style="display:none">
+      <div class="rec-floating-dot"></div>
+      <span id="recFloatingTimer">00:00</span>
+    </div>
+
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.10.7/shaka-player.compiled.min.js"></script>
+<script type="module" src="js/app.js"></script>
+
+</body>
+</html>

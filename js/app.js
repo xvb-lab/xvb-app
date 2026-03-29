@@ -1,0 +1,1635 @@
+/**
+ * XVB3 — app.js
+ */
+
+import { state }                   from './state.js';
+import { CONFIG }                  from './config.js';
+import { loadPlaylist }            from './playlist.js';
+import { fetchEpg, getCurrent, getNext, startAutoRefresh } from './epg.js';
+import { initPlayer, play, stop, togglePlay, rewind, forward, setVolume } from './player.js';
+import { renderQualityMenu, getCurrentQualityLabel } from './quality.js';
+
+const $ = id => document.getElementById(id);
+
+// ── Orologio topbar ──
+function updateClock() {
+  const el = document.getElementById('topbarClock');
+  if (!el) return;
+  const now = new Date();
+  el.textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+function fmtTime(d) {
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+/* ── Player status pill ── */
+function showSpinner() {
+  const pill = $('playerStatusPill');
+  const ring = $('playerSpinnerInner');
+  const msg  = $('playerStatusMsg');
+  if (!pill) return;
+  if (ring) ring.style.display = 'block';
+  if (msg)  msg.textContent = '';
+  pill.hidden = false;
+}
+function showError(txt) {
+  const pill = $('playerStatusPill');
+  const ring = $('playerSpinnerInner');
+  const msg  = $('playerStatusMsg');
+  if (!pill) return;
+  if (ring) ring.style.display = 'none';
+  if (msg)  msg.innerHTML = `<span class="material-symbols-outlined" style="font-size:28px;vertical-align:middle;margin-right:5px;">warning</span>${txt || 'Stream non disponibile'}`;
+  pill.hidden = false;
+}
+function hideStatus() {
+  const pill = $('playerStatusPill');
+  if (pill) pill.hidden = true;
+}
+
+/* ── Material You — Color System ─────────────────
+   Estrae seed color dal logo, genera tonal palette
+   e applica ruoli corretti come da guida Android TV
+   ─────────────────────────────────────────────── */
+const _colorCache = new Map();
+
+function extractDominantColor(src, callback) {
+  if (!src) { callback(null); return; }
+  if (_colorCache.has(src)) { callback(_colorCache.get(src)); return; }
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    try {
+      const c = document.createElement('canvas');
+      c.width = c.height = 32;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, 32, 32);
+      const data = ctx.getImageData(0, 0, 32, 32).data;
+      const buckets = {};
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+        if (a < 128) continue;
+        const br = (r*299 + g*587 + b*114) / 1000;
+        if (br < 20 || br > 235) continue;
+        if (Math.max(r,g,b) - Math.min(r,g,b) < 30) continue;
+        const key = `${Math.round(r/32)*32},${Math.round(g/32)*32},${Math.round(b/32)*32}`;
+        buckets[key] = (buckets[key] || 0) + 1;
+      }
+      const sorted = Object.entries(buckets).sort((a,b) => b[1]-a[1]);
+      if (!sorted.length) { _colorCache.set(src, null); callback(null); return; }
+      const [r,g,b] = sorted[0][0].split(',').map(Number);
+      _colorCache.set(src, { r, g, b });
+      callback({ r, g, b });
+    } catch { _colorCache.set(src, null); callback(null); }
+  };
+  img.onerror = () => { _colorCache.set(src, null); callback(null); };
+  img.src = src;
+}
+
+// RGB → HSL
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b);
+  let h, s, l = (max+min)/2;
+  if (max === min) { h = s = 0; }
+  else {
+    const d = max - min;
+    s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+    switch(max) {
+      case r: h = ((g-b)/d + (g<b?6:0))/6; break;
+      case g: h = ((b-r)/d + 2)/6; break;
+      default: h = ((r-g)/d + 4)/6;
+    }
+  }
+  return [h*360, s*100, l*100];
+}
+
+// HSL → RGB
+function hslToRgb(h, s, l) {
+  h /= 360; s /= 100; l /= 100;
+  const hue2rgb = (p, q, t) => {
+    if (t < 0) t += 1; if (t > 1) t -= 1;
+    if (t < 1/6) return p+(q-p)*6*t;
+    if (t < 1/2) return q;
+    if (t < 2/3) return p+(q-p)*(2/3-t)*6;
+    return p;
+  };
+  if (s === 0) { const v = Math.round(l*255); return [v,v,v]; }
+  const q = l < 0.5 ? l*(1+s) : l+s-l*s;
+  const p = 2*l-q;
+  return [
+    Math.round(hue2rgb(p,q,h+1/3)*255),
+    Math.round(hue2rgb(p,q,h)*255),
+    Math.round(hue2rgb(p,q,h-1/3)*255)
+  ];
+}
+
+// Genera tonal palette da seed — tonalità T0→T100
+// Material You: mantieni hue e saturation, varia solo lightness
+function tonalPalette(r, g, b) {
+  const [h, s] = rgbToHsl(r, g, b);
+  // Clampa saturazione: TV usa valori più bassi per non stancare
+  const ts = Math.min(s, 48);
+  const tone = (l) => hslToRgb(h, ts, l);
+  return {
+    t0:   tone(0),
+    t10:  tone(10),
+    t20:  tone(20),
+    t30:  tone(30),
+    t40:  tone(40),   // primary
+    t50:  tone(50),
+    t60:  tone(60),
+    t70:  tone(70),
+    t80:  tone(80),   // primary container
+    t90:  tone(90),
+    t95:  tone(95),
+    t99:  tone(99),
+    t100: tone(100),
+  };
+}
+
+function applyMaterialTheme(r, g, b) {
+  const pal = tonalPalette(r, g, b);
+  const css = (rgb) => `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+
+  // Ruoli Material You per dark theme TV:
+  // primary         = T80  (container attivo, pill categoria)
+  // on-primary      = T20  (testo su primary)
+  // primary-container = T30 (surface elevata)
+  // surface         = T10  (sfondo card)
+  // surface-variant = T20  (sfondo card variante)
+
+  const root = document.documentElement;
+  root.style.setProperty('--md-primary',           css(pal.t80));
+  root.style.setProperty('--md-on-primary',        css(pal.t20));
+  root.style.setProperty('--md-primary-container', css(pal.t30));
+  root.style.setProperty('--md-surface-tint',      css(pal.t40));
+  root.style.setProperty('--md-card-bg',           css(pal.t10));
+  root.style.setProperty('--glow-bottom-left',     `rgba(${pal.t40[0]},${pal.t40[1]},${pal.t40[2]},.65)`);
+}
+
+function resetMaterialTheme() {
+  const root = document.documentElement;
+  root.style.setProperty('--md-primary',           'rgb(208,188,255)');
+  root.style.setProperty('--md-on-primary',        'rgb(30,20,60)');
+  root.style.setProperty('--md-primary-container', 'rgb(40,30,80)');
+  root.style.setProperty('--md-surface-tint',      'rgb(80,60,120)');
+  root.style.setProperty('--md-card-bg',           'rgb(28,28,36)');
+  root.style.setProperty('--glow-bottom-left',     'rgba(103,80,164,.65)');
+}
+
+/* ── Player background: colore logo + logo centrato 250px ── */
+function updatePlayerBg(ch) {
+  const bg = document.getElementById('playerBg');
+  if (!bg) return;
+  const logoSrc = ch?.logo || '';
+
+  if (logoSrc) {
+    extractDominantColor(logoSrc, color => {
+      const r = color?.r ?? 20, g = color?.g ?? 18, b = color?.b ?? 30;
+      const dr = Math.round(r * 0.3);
+      const dg = Math.round(g * 0.3);
+      const db = Math.round(b * 0.3);
+      // Radiale centrato solo attorno al logo, sfondo nero ai bordi
+      bg.style.background = `radial-gradient(ellipse 55% 55% at 50% 50%, rgb(${dr},${dg},${db}) 0%, #0a0a0f 70%)`;
+      document.documentElement.style.setProperty(
+        '--player-bottom-gradient',
+        `rgba(${dr},${dg},${db},0.95)`
+      );
+    });
+    bg.dataset.logo = logoSrc;
+  } else {
+    bg.style.background = 'rgba(20,18,30,0.6)';
+    bg.dataset.logo = '';
+  }
+
+  // Aggiorna logo centrato
+  let logoEl = document.getElementById('playerBgLogo');
+  if (!logoEl) {
+    logoEl = document.createElement('img');
+    logoEl.id = 'playerBgLogo';
+    bg.appendChild(logoEl);
+  }
+  if (logoSrc) {
+    logoEl.src = logoSrc;
+    logoEl.style.display = 'block';
+  } else {
+    logoEl.style.display = 'none';
+  }
+}
+
+/* ── Hero ── */
+/* ── Favourites ── */
+const FAVOURITES_KEY   = 'xvb.favourites';
+const FAVOURITES_GROUP = 'Favourites';
+
+function loadFavourites() {
+  try { const r = localStorage.getItem(FAVOURITES_KEY); const a = r ? JSON.parse(r) : []; return Array.isArray(a) ? a : []; } catch { return []; }
+}
+function saveFavourites(favs) { try { localStorage.setItem(FAVOURITES_KEY, JSON.stringify(favs)); } catch {} }
+function isFavourite(url) { return loadFavourites().some(f => f.url === url); }
+function toggleFavourite(ch) {
+  let favs = loadFavourites();
+  if (favs.some(f => f.url === ch.url)) {
+    favs = favs.filter(f => f.url !== ch.url);
+  } else {
+    favs.push({ url:ch.url, name:ch.name, group:ch.group, logo:ch.logo||'', tvgId:ch.tvgId||'', _source:ch._source||'url' });
+  }
+  saveFavourites(favs);
+  return favs.some(f => f.url === ch.url);
+}
+function getFavouritesAsGroup() {
+  return loadFavourites().map(f => ({ ...f, group: FAVOURITES_GROUP }));
+}
+
+function updateFavBtn(ch) {
+  const btn  = $('heroFavBtn');
+  const icon = $('heroFavIcon');
+  if (!btn || !icon) return;
+  const fav = isFavourite(ch?.url);
+  icon.textContent = fav ? 'favorite' : 'favorite_border';
+  icon.style.fontVariationSettings = fav ? "'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24" : "'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24";
+  btn.classList.toggle('is-fav', fav);
+}
+
+/* ── Stream type detection ── */
+function getStreamType(url) {
+  if (!url) return null;
+  const u = url.toLowerCase().split('?')[0];
+  if (u.endsWith('.m3u8') || u.includes('/hls/') || u.includes('manifest.m3u8')) return 'HLS';
+  if (u.endsWith('.mpd') || u.includes('/dash/')) return 'DASH';
+  if (u.endsWith('.ts') || u.includes('/ts/')) return 'MPEG-TS';
+  if (u.endsWith('.mp3') || u.endsWith('.aac') || u.endsWith('.ogg') || u.endsWith('.flac')) return 'AUDIO';
+  return null;
+}
+
+function getAudioHint(url) {
+  if (!url) return null;
+  const u = url.toLowerCase().split('?')[0];
+  if (u.includes('heaac') || u.includes('he-aac')) return 'HE-AAC';
+  if (u.includes('eac3') || u.includes('e-ac3'))   return 'E-AC3';
+  if (u.includes('ac3') || u.includes('dolby'))    return 'AC3';
+  if (u.includes('aac') || u.endsWith('.aac'))     return 'AAC';
+  if (u.includes('mp3') || u.endsWith('.mp3'))     return 'MP3';
+  if (u.includes('opus'))                           return 'Opus';
+  if (u.includes('flac') || u.endsWith('.flac'))   return 'FLAC';
+  return null;
+}
+
+function getResolutionHint(url) {
+  if (!url) return null;
+  const u = url.toLowerCase();
+  if (u.includes('4k') || u.includes('uhd') || u.includes('2160')) return '4K';
+  if (u.includes('2k') || u.includes('1440'))                       return '2K';
+  if (u.includes('1080') || u.includes('fhd'))                      return '1080p';
+  if (u.includes('720') || u.includes('hd'))                        return '720p';
+  if (u.includes('480') || u.includes('sd'))                        return '480p';
+  return null;
+}
+
+function makeBadge(label, cls) {
+  const b = document.createElement('div');
+  b.className = cls ? `stream-badge ${cls}` : 'stream-badge';
+  b.textContent = label;
+  return b;
+}
+
+// Normalizza il rating EPG in etichetta leggibile + classe CSS
+function normalizeRating(raw) {
+  if (!raw) return null;
+  const label = raw.trim();
+  if (!label) return null;
+  return { label, cls: 'badge-rating' };
+}
+
+function updateStreamMeta(ch) {
+  const el = $('heroStreamMeta');
+  if (!el) return;
+  el.innerHTML = '';
+
+  // 1. Tipo flusso
+  const type = getStreamType(ch?.url);
+  if (type) el.appendChild(makeBadge(type));
+
+  // 2. Audio codec dall'URL
+  const audio = getAudioHint(ch?.url);
+  if (audio) el.appendChild(makeBadge(audio));
+
+  // 4. Metadati EPG: rating, anno, durata
+  const epgCurrent = window._xvbEpgCurrent || null;
+  if (epgCurrent) {
+    if (epgCurrent.rating) {
+      const r = normalizeRating(epgCurrent.rating);
+      if (r) el.appendChild(makeBadge(r.label, r.cls));
+    }
+    if (epgCurrent.year) {
+      el.appendChild(makeBadge(epgCurrent.year, 'badge-meta'));
+    }
+    if (epgCurrent.duration && epgCurrent.duration > 0) {
+      const h = Math.floor(epgCurrent.duration / 60);
+      const m = epgCurrent.duration % 60;
+      const label = h > 0 ? `${h}h${m > 0 ? ' ' + m + 'm' : ''}` : `${m}m`;
+      el.appendChild(makeBadge(label, 'badge-meta'));
+    }
+  }
+}
+
+function updateHero(ch) {
+  if (!ch) return;
+  state.activeChannel = ch;
+
+  const epg  = getCurrent(ch);
+  window._xvbEpgCurrent = epg; // esposto per badge rating
+  const next = getNext(ch, 5);
+
+  const img = epg?.icon || ch.logo || '';
+  const heroBg = $('heroBg');
+  if (heroBg) {
+    if (img) {
+      heroBg.classList.add('skeleton');
+      const probe = new Image();
+      probe.onload = () => heroBg.classList.remove('skeleton');
+      probe.onerror = () => heroBg.classList.remove('skeleton');
+      probe.src = img;
+      heroBg.style.backgroundImage = `url(${img})`;
+    } else {
+      heroBg.classList.remove('skeleton');
+      heroBg.style.backgroundImage = 'none';
+    }
+  }
+
+  const heroLogo = $('heroLogo');
+  const heroLogoText = $('heroLogoText'); // Recuperiamo il nuovo elemento
+
+  if (heroLogo && heroLogoText) {
+    if (ch.logo) {
+      // Se c'è il logo, mostra l'immagine e nascondi il testo
+      heroLogo.style.opacity = '0';
+      heroLogo.onload = () => { heroLogo.style.opacity = '1'; };
+      heroLogo.src = ch.logo;
+      heroLogo.style.display = 'block';
+      heroLogoText.style.display = 'none';
+    } else {
+      // Se NON c'è il logo, nascondi l'immagine e mostra il nome del canale
+      heroLogo.style.display = 'none';
+      heroLogoText.textContent = ch.name || 'Canale Sconosciuto';
+      heroLogoText.style.display = 'block';
+    }
+  }
+
+  const heroMeta = $('heroMeta');
+  if (heroMeta) heroMeta.textContent = ch.group || '';
+
+  // Stream type badges
+  updateStreamMeta(ch);
+
+  const heroTitle = $('heroTitle');
+  if (heroTitle) heroTitle.textContent = epg?.title || ch.name;
+
+  const heroDesc = $('heroDesc');
+  if (heroDesc) heroDesc.textContent = epg?.desc || '';
+
+  // Aggiorna bottone preferiti
+  updateFavBtn(ch);
+
+  const heroProgressWrap = $('heroProgressWrap');
+  const heroFill = $('heroFill');
+  if (epg && heroFill) {
+    heroFill.style.width = `${epg.pct}%`;
+    heroProgressWrap?.classList.add('visible');
+  } else {
+    heroProgressWrap?.classList.remove('visible');
+  }
+
+  const heroNext = $('heroNext');
+  if (heroNext) {
+    heroNext.innerHTML = next.map(p =>
+      `<div class="next-item">
+        <span class="next-time">${fmtTime(new Date(p.start))}</span>
+        <span class="next-title">${p.title}</span>
+      </div>`
+    ).join('');
+  }
+
+  // Material You — genera tema dal logo del canale
+  if (ch.logo) {
+    extractDominantColor(ch.logo, color => {
+      if (color) applyMaterialTheme(color.r, color.g, color.b);
+      else resetMaterialTheme();
+    });
+  } else {
+    resetMaterialTheme();
+  }
+}
+
+/* ── Card ── */
+function buildCard(ch) {
+  const isMobile = document.body.classList.contains('is-mobile');
+  const card = document.createElement('div');
+  card.className = 'channel-card';
+  card.dataset.url = ch.url;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'card-img-wrap';
+
+  if (ch.logo) {
+    wrap.classList.add('skeleton');
+    const img = document.createElement('img');
+    img.alt = '';
+    img.onload = () => {
+      wrap.classList.remove('skeleton');
+      extractDominantColor(ch.logo, color => {
+        if (color) wrap.style.background = `rgba(${color.r},${color.g},${color.b},0.15)`;
+      });
+    };
+    img.onerror = () => {
+      wrap.classList.remove('skeleton');
+      wrap.innerHTML = `<span class="card-name-fallback">${ch.name || 'Sconosciuto'}</span>`;
+    };
+    img.src = ch.logo;
+    wrap.appendChild(img);
+  } else {
+    wrap.innerHTML = `<span class="card-name-fallback">${ch.name || 'Sconosciuto'}</span>`;
+  }
+
+  card.appendChild(wrap);
+
+  // Mobile: aggiungi riga dettagli stile YouTube
+  if (isMobile) {
+    const epg = getCurrent(ch);
+
+    // ── Thumbnail: anteprima EPG se disponibile, altrimenti logo ──
+    wrap.innerHTML = '';
+    wrap.classList.add('skeleton');
+    const thumbSrc = epg?.icon || ch.logo || '';
+    const isEpgThumb = !!(epg?.icon);
+
+    if (thumbSrc) {
+      const img = document.createElement('img');
+      img.alt = '';
+      img.className = isEpgThumb ? 'thumb-epg' : 'thumb-logo';
+      img.onload = () => {
+        wrap.classList.remove('skeleton');
+        if (!isEpgThumb) {
+          extractDominantColor(thumbSrc, color => {
+            if (color) wrap.style.background = `rgba(${color.r},${color.g},${color.b},0.15)`;
+          });
+        }
+      };
+      img.onerror = () => {
+        wrap.classList.remove('skeleton');
+        wrap.innerHTML = `<span class="card-name-fallback">${ch.name}</span>`;
+      };
+      img.src = thumbSrc;
+      wrap.appendChild(img);
+    } else {
+      wrap.classList.remove('skeleton');
+      wrap.innerHTML = `<span class="card-name-fallback">${ch.name}</span>`;
+    }
+
+    // Timestamp EPG in basso a destra sulla card (stile YouTube)
+    if (epg) {
+      const ts = document.createElement('div');
+      ts.className = 'card-timestamp';
+      ts.textContent = `${fmtTime(new Date(epg.start))} / ${fmtTime(new Date(epg.stop))}`;
+      wrap.appendChild(ts);
+    }
+
+    // ── Riga dettagli sotto la card ──
+    const details = document.createElement('div');
+    details.className = 'video-details';
+
+    // Avatar logo canale (piccolo, cerchio)
+    const avatar = document.createElement('div');
+    avatar.className = 'channel-avatar';
+    if (ch.logo) {
+      const aImg = document.createElement('img');
+      aImg.src = ch.logo; aImg.alt = '';
+      aImg.onerror = () => { avatar.innerHTML = `<span class="avatar-fallback">${(ch.name||'?')[0].toUpperCase()}</span>`; };
+      avatar.appendChild(aImg);
+    } else {
+      avatar.innerHTML = `<span class="avatar-fallback">${(ch.name||'?')[0].toUpperCase()}</span>`;
+    }
+
+    // Testo: titolo EPG + nome canale
+    const textDiv = document.createElement('div');
+    textDiv.className = 'card-text';
+
+    const titleEl = document.createElement('div');
+    titleEl.className = 'card-title';
+    titleEl.textContent = epg?.title || ch.name;
+
+    const chanEl = document.createElement('div');
+    chanEl.className = 'card-chan-name';
+    chanEl.textContent = ch.name;
+
+    textDiv.appendChild(titleEl);
+    textDiv.appendChild(chanEl);
+
+    // Menu ⋮
+    const menuBtn = document.createElement('button');
+    menuBtn.className = 'icon-btn card-menu-btn';
+    menuBtn.innerHTML = '<span class="material-symbols-outlined">more_vert</span>';
+    menuBtn.addEventListener('click', e => e.stopPropagation());
+
+    details.appendChild(avatar);
+    details.appendChild(textDiv);
+    details.appendChild(menuBtn);
+    card.appendChild(details);
+
+    // Colore dinamico sul nome canale
+    if (ch.logo) {
+      extractDominantColor(ch.logo, color => {
+        if (color) {
+          const [h, s] = rgbToHsl(color.r, color.g, color.b);
+          const [lr, lg, lb] = hslToRgb(h, Math.min(s, 60), 75);
+          chanEl.style.color = `rgb(${lr},${lg},${lb})`;
+        }
+      });
+    }
+  }
+
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.channel-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    if (isMobile) {
+      // Mobile: seleziona canale e apri player direttamente
+      state.activeChannel = ch;
+      openPlayer();
+      play(ch);
+      showSpinner();
+      updatePlayerBg(ch);
+      const logoImgEl  = $('playerLogoImg');
+      const logoTextEl = $('playerLogoText');
+      if (logoImgEl && logoTextEl) {
+        if (ch.logo) {
+          logoImgEl.src = ch.logo; logoImgEl.style.display = 'block'; logoTextEl.style.display = 'none';
+        } else {
+          logoTextEl.textContent = (ch.name || '?').substring(0, 2).toUpperCase();
+          logoImgEl.style.display = 'none'; logoTextEl.style.display = 'flex';
+        }
+      }
+      const epg = getCurrent(ch);
+      const progEl = $('playerProgramTitle');
+      if (progEl) progEl.textContent = epg?.title || ch.name || '';
+      // Applica Material You color per progress bar dinamica
+      if (ch.logo) {
+        extractDominantColor(ch.logo, color => {
+          if (color) {
+            applyMaterialTheme(color.r, color.g, color.b);
+            // Forza colore direttamente sulla progress bar
+            const pal = tonalPalette(color.r, color.g, color.b);
+            const progressEl = $('playerProgress');
+            if (progressEl) progressEl.style.background = `rgb(${pal.t80[0]},${pal.t80[1]},${pal.t80[2]})`;
+          } else {
+            resetMaterialTheme();
+            const progressEl = $('playerProgress');
+            if (progressEl) progressEl.style.background = '';
+          }
+        });
+      } else {
+        resetMaterialTheme();
+        const progressEl = $('playerProgress');
+        if (progressEl) progressEl.style.background = '';
+      }
+    } else {
+      updateHero(ch);
+    }
+  });
+
+  return card;
+}
+
+/* ── Niente wheel custom — scroll normale ── */
+function bindDragScroll(row) {}
+
+function initWheelScroll() {}
+
+/* ── Scroll → prima card visibile aggiorna hero ── */
+function bindRowScroll(row, channels) {
+  row.addEventListener('scroll', () => {
+    const cards   = Array.from(row.querySelectorAll('.channel-card'));
+    const rowRect = row.getBoundingClientRect();
+
+    const first = cards.find(card => {
+      const r = card.getBoundingClientRect();
+      return r.right > rowRect.left + 10 && r.left < rowRect.right;
+    });
+
+    if (!first) return;
+    const url = first.dataset.url;
+    const ch  = channels.find(c => c.url === url);
+    if (!ch || ch.url === state.activeChannel?.url) return;
+
+    // Aggiorna active
+    document.querySelectorAll('.channel-card').forEach(c => c.classList.remove('active'));
+    first.classList.add('active');
+    updateHero(ch);
+  }, { passive: true });
+}
+
+/* ── Render channels ── */
+function renderChannels(channels) {
+  const container = $('channelsArea');
+  if (!container) return;
+  container.innerHTML = '';
+  const isMobile = document.body.classList.contains('is-mobile');
+
+  const cats = [...new Set(channels.map(ch => ch.group || 'Other'))];
+
+  cats.forEach(cat => {
+    const chs = channels.filter(ch => ch.group === cat);
+    if (!chs.length) return;
+
+    if (isMobile) {
+      // Mobile: lista verticale senza row/arrows
+      const section = document.createElement('div');
+      section.className = 'channel-row';
+
+      const title = document.createElement('div');
+      title.className = 'channel-row-title';
+      title.textContent = cat;
+      section.appendChild(title);
+
+      chs.forEach(ch => section.appendChild(buildCard(ch)));
+      container.appendChild(section);
+    } else {
+      // Desktop: row orizzontale con frecce
+      const section = document.createElement('div');
+      section.className = 'category-section';
+
+      const title = document.createElement('h3');
+      title.className = 'category-title';
+      title.textContent = cat;
+
+      const rowWrap = document.createElement('div');
+      rowWrap.className = 'row-wrap';
+
+      const btnPrev = document.createElement('button');
+      btnPrev.className = 'row-arrow row-arrow--prev';
+      btnPrev.innerHTML = '<span class="material-symbols-outlined">chevron_left</span>';
+
+      const btnNext = document.createElement('button');
+      btnNext.className = 'row-arrow row-arrow--next';
+      btnNext.innerHTML = '<span class="material-symbols-outlined">chevron_right</span>';
+
+      const row = document.createElement('div');
+      row.className = 'channel-row';
+
+      chs.forEach(ch => row.appendChild(buildCard(ch)));
+
+      const SCROLL_AMT = 240 * 3;
+      btnPrev.addEventListener('click', () => row.scrollBy({ left: -SCROLL_AMT, behavior: 'smooth' }));
+      btnNext.addEventListener('click', () => row.scrollBy({ left:  SCROLL_AMT, behavior: 'smooth' }));
+
+      rowWrap.appendChild(btnPrev);
+      rowWrap.appendChild(row);
+      rowWrap.appendChild(btnNext);
+
+      section.appendChild(title);
+      section.appendChild(rowWrap);
+      container.appendChild(section);
+    }
+  });
+
+  // Prima card attiva
+  const firstCard = container.querySelector('.channel-card');
+  if (firstCard) {
+    firstCard.classList.add('active');
+    if (channels[0] && !isMobile) updateHero(channels[0]);
+  }
+}
+
+/* ── Categorie ── */
+function renderCategories(channels) {
+  const bar = $('categoriesBar');
+  if (!bar) return;
+
+  const cats = [...new Set(channels.map(ch => ch.group || 'Other'))];
+  bar.innerHTML = '';
+
+  // Determina il tipo sorgente di ogni categoria per il dot
+  const catSource = {};
+  channels.forEach(ch => {
+    const g = ch.group || 'Other';
+    if (!catSource[g]) catSource[g] = ch._source || 'url';
+  });
+
+  cats.forEach((cat, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn' + (i === 0 ? ' active' : '');
+    btn.dataset.cat = cat;
+
+    // Dot colorato come v2.3
+    btn.textContent = cat;
+    btn.addEventListener('click', () => {
+      bar.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderChannels(channels.filter(ch => ch.group === cat));
+    });
+
+    bar.appendChild(btn);
+  });
+
+  // Frecce — visibili solo se overflow
+  updateCatArrows(bar);
+  bar.addEventListener('scroll', () => updateCatArrows(bar), { passive: true });
+}
+
+function updateCatArrows(bar) {
+  const prev = $('catPrev');
+  const next = $('catNext');
+  if (!prev || !next || !bar) return;
+  // Forza reflow prima di misurare
+  const hasOverflow = bar.scrollWidth > bar.offsetWidth + 4;
+  prev.style.display = hasOverflow ? 'flex' : 'none';
+  next.style.display = hasOverflow ? 'flex' : 'none';
+}
+
+/* ── Player ── */
+let _controlsTimer = null;
+
+function showControls() {
+  const overlay = $('playerOverlay');
+  if (!overlay) return;
+  overlay.classList.add('show-controls');
+  clearTimeout(_controlsTimer);
+  // Mobile: timeout più lungo (5s), desktop 3s
+  const timeout = document.body.classList.contains('is-mobile') ? 5000 : 3000;
+  _controlsTimer = setTimeout(() => {
+    overlay.classList.remove('show-controls');
+  }, timeout);
+}
+
+function openPlayer() {
+  const overlay = $('playerOverlay');
+  overlay?.classList.add('active');
+  state.playerOpen = true;
+  showControls();
+
+  // Mostra controlli su movimento mouse o touch
+  overlay?.addEventListener('mousemove', showControls);
+  overlay?.addEventListener('touchstart', showControls, { passive: true });
+
+  // Mobile: tap sul video mostra/nasconde i controlli
+  if (document.body.classList.contains('is-mobile')) {
+    const video = $('videoEl');
+    video?.addEventListener('click', showControls);
+  }
+}
+
+function closePlayer() {
+  $('playerOverlay')?.classList.remove('active');
+  stop();
+  state.playerOpen = false;
+
+  // Ripristina hero e card attiva sull'ultimo canale visualizzato
+  if (state.activeChannel) {
+    updateHero(state.activeChannel);
+    // Trova e riattiva la card corrispondente
+    const cards = document.querySelectorAll('.channel-card');
+    cards.forEach(card => {
+      const isActive = card.dataset.url === state.activeChannel.url;
+      card.classList.toggle('active', isActive);
+      if (isActive) card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    });
+  }
+}
+
+function bindWatchNow() {
+  $('watchNowBtn')?.addEventListener('click', () => {
+    if (!state.activeChannel) return;
+    openPlayer();
+    play(state.activeChannel);
+    showSpinner();
+    
+    updatePlayerBg(state.activeChannel);
+    const ch = state.activeChannel;
+    const epg = getCurrent(ch);
+
+    // Logo nel player
+    const logoImgEl  = $('playerLogoImg');
+    const logoTextEl = $('playerLogoText');
+    if (logoImgEl && logoTextEl) {
+      if (ch.logo) {
+        logoImgEl.src = ch.logo; logoImgEl.style.display = 'block'; logoTextEl.style.display = 'none';
+      } else {
+        logoTextEl.textContent = (ch.name || '?').substring(0, 2).toUpperCase();
+        logoImgEl.style.display = 'none'; logoTextEl.style.display = 'flex';
+      }
+    }
+
+    const titleEl = $('playerProgramTitle');
+    const fill = $('playerProgress');
+    if (epg) {
+      if (titleEl) titleEl.textContent = epg.title || '';
+      if (fill) { fill.style.width = `${epg.pct}%`; fill.classList.remove('is-buffer'); }
+    } else {
+      if (titleEl) titleEl.textContent = 'Live';
+      if (fill) { fill.style.width = '0%'; fill.classList.add('is-buffer'); }
+    }
+  });
+}
+
+function bindPlayerControls() {
+  const getVideo = () => document.getElementById('videoEl');
+
+  $('playerClose')?.addEventListener('click', closePlayer);
+
+  $('playerPlay')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const v = getVideo(); if (!v) return;
+    if (v.paused) { 
+      v.play().catch(()=>{}); 
+      if ($('playerPlayIcon')) $('playerPlayIcon').textContent = 'pause'; 
+    } else { 
+      v.pause(); 
+      if ($('playerPlayIcon')) $('playerPlayIcon').textContent = 'play_arrow'; 
+    }
+  });
+
+  $('playerRewind')?.addEventListener('click',  (e) => { e.stopPropagation(); rewind(10); });
+  $('playerForward')?.addEventListener('click', (e) => { e.stopPropagation(); forward(10); });
+
+  // ── Time display — ora corrente / fine EPG ──
+  const updateTimeDisplay = () => {
+    const el = $('playerTimeDisplay'); if (!el) return;
+    const now = new Date();
+    const nowStr = fmtTime(now);
+    const epg = state.activeChannel ? getCurrent(state.activeChannel) : null;
+    if (epg) {
+      el.textContent = `${nowStr} / ${fmtTime(new Date(epg.stop))}`;
+    } else {
+      const vid = getVideo();
+      if (vid && isFinite(vid.duration) && vid.duration > 0) {
+        const dur = vid.duration;
+        const fmt = s => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+        el.textContent = `${nowStr} / ${fmt(dur)}`;
+      } else {
+        el.textContent = nowStr;
+      }
+    }
+  };
+  setInterval(updateTimeDisplay, 1000);
+
+  // Stub speed — ridefiniti sotto nella sezione Speed Button
+  let _speedIdx = 0;
+  let updateSpeedBtn = () => {};
+
+  // ── Logica Cambio Canale (Navigazione) ──
+  const navigateChannel = (direction) => {
+    const allCh = state.allChannels;
+    if (!allCh.length || !state.activeChannel) return;
+
+    let currentIndex = allCh.findIndex(c => c.url === state.activeChannel.url);
+    let nextIndex = currentIndex + direction;
+
+    if (nextIndex >= allCh.length) nextIndex = 0;
+    if (nextIndex < 0) nextIndex = allCh.length - 1;
+
+    const nextCh = allCh[nextIndex];
+    
+    play(nextCh);
+    showSpinner();
+    
+    updateHero(nextCh);
+    updatePlayerBg(nextCh);
+
+    // Reset velocità a 1x al cambio canale
+    _speedIdx = 0;
+    const vid2 = getVideo(); if (vid2) vid2.playbackRate = 1;
+    updateSpeedBtn();
+
+    const titleEl = $('playerProgramTitle');
+
+    const logoImgEl = $('playerLogoImg');
+    const logoTextEl = $('playerLogoText');
+    if (logoImgEl && logoTextEl) {
+      if (nextCh.logo) {
+        logoImgEl.src = nextCh.logo;
+        logoImgEl.style.display = 'block';
+        logoTextEl.style.display = 'none';
+      } else {
+        logoTextEl.textContent = (nextCh.name || '?').substring(0, 2).toUpperCase();
+        logoImgEl.style.display = 'none';
+        logoTextEl.style.display = 'flex';
+      }
+    }
+
+    const epg = getCurrent(nextCh);
+    const fill = $('playerProgress');
+
+    if (epg) {
+      if (titleEl) titleEl.textContent = epg.title || '';
+      if (fill) { fill.style.width = `${epg.pct}%`; fill.classList.remove('is-buffer'); }
+    } else {
+      if (titleEl) titleEl.textContent = 'Live';
+      if (fill) { fill.style.width = '0%'; fill.classList.add('is-buffer'); }
+    }
+
+    // Aggiorna il colore dinamico del volume dopo il cambio canale
+    setTimeout(updateVolSlider, 150);
+  };
+
+  $('playerPrevChan')?.addEventListener('click', (e) => { e.stopPropagation(); navigateChannel(-1); });
+  $('playerNextChan')?.addEventListener('click', (e) => { e.stopPropagation(); navigateChannel(1); });
+
+  // ── Volume ──
+  const VOLUME_KEY = 'xvb3.volume';
+  const saveVol = (v) => { try { localStorage.setItem(VOLUME_KEY, String(v)); } catch {} };
+  const loadVol = () => { try { const v = parseFloat(localStorage.getItem(VOLUME_KEY)); return isFinite(v) ? Math.max(0,Math.min(1,v)) : 1; } catch { return 1; } };
+  
+  let volTimer = null;
+  const openVolUI = () => {
+    const c = document.querySelector('.volume-container'); if (!c) return;
+    c.classList.add('open'); clearTimeout(volTimer);
+    volTimer = setTimeout(() => c.classList.remove('open'), 3000);
+  };
+
+  // ── Volume + Boost — barra unica ──
+  // Slider range: 0–2
+  //   0–1  → volume normale (0%–100%), boost = 1x
+  //   1–2  → volume fisso a 1, boost da 1x a 3x (mappato linearmente)
+  // Colore barra: primario nella zona 0–1, rosso nella zona 1–2
+
+  let _audioCtx = null, _gainNode = null, _sourceNode = null, _boostReady = false, _boostDisabled = false;
+
+  const ensureBoost = () => {
+    if (_boostDisabled || _boostReady) return _boostReady;
+    const vid = getVideo(); if (!vid) return false;
+    try {
+      _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      _sourceNode = _sourceNode || _audioCtx.createMediaElementSource(vid);
+      _gainNode   = _gainNode   || _audioCtx.createGain();
+      _sourceNode.connect(_gainNode);
+      _gainNode.connect(_audioCtx.destination);
+      _gainNode.gain.value = vid.volume;
+      _boostReady = true;
+      return true;
+    } catch { _boostDisabled = true; return false; }
+  };
+
+  // Aggiorna la grafica della barra unica e applica volume + boost
+  const updateVolSlider = async () => {
+    const s = $('volumeSlider'); if (!s) return;
+    const raw = parseFloat(s.value) || 0;          // 0–2
+    const vid = getVideo();
+    const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--md-primary').trim() || '#d0bcff';
+    const SPLIT = 1;   // punto di separazione volume/boost nella barra
+    const MAX   = 2;
+
+    if (raw <= SPLIT) {
+      // Zona volume: colore primario fino al valore, poi grigio
+      const volPct = (raw / SPLIT) * (SPLIT / MAX) * 100;  // % sulla barra totale
+      const splitPct = (SPLIT / MAX) * 100;                 // 50%
+      s.style.background = `linear-gradient(to right,
+        ${primaryColor} 0%,
+        ${primaryColor} ${volPct}%,
+        rgba(255,255,255,.12) ${volPct}%,
+        rgba(255,255,255,.12) ${splitPct}%,
+        rgba(255,255,255,.06) ${splitPct}%,
+        rgba(255,255,255,.06) 100%)`;
+
+      // Imposta volume, azzera boost
+      if (vid) { vid.volume = raw; vid.muted = raw === 0; }
+      if (_boostReady && _gainNode) _gainNode.gain.value = vid ? vid.volume : raw;
+
+      const muteIcon = $('muteGlyph');
+      if (muteIcon) muteIcon.textContent = raw === 0 ? 'volume_off' : raw <= 0.66 ? 'volume_down' : 'volume_up';
+      if (raw > 0) saveVol(raw);
+
+    } else {
+      // Zona boost: volume fisso a 1, boost 1x–3x
+      const boostMultiplier = 1 + ((raw - SPLIT) / (MAX - SPLIT)) * 2; // mappa 1–2 → 1x–3x
+      const splitPct  = (SPLIT / MAX) * 100;  // 50%
+      const boostPct  = (raw   / MAX) * 100;
+
+      s.style.background = `linear-gradient(to right,
+        ${primaryColor} 0%,
+        ${primaryColor} ${splitPct}%,
+        #ff4d4d ${splitPct}%,
+        #ff4d4d ${boostPct}%,
+        rgba(255,255,255,.12) ${boostPct}%,
+        rgba(255,255,255,.12) 100%)`;
+
+      // Mantieni volume al 100%
+      if (vid) { vid.volume = 1; vid.muted = false; }
+      const muteIcon = $('muteGlyph');
+      if (muteIcon) muteIcon.textContent = 'volume_up';
+      saveVol(1);
+
+      // Applica boost
+      if (ensureBoost()) {
+        if (_audioCtx?.state === 'suspended') await _audioCtx.resume();
+        if (_gainNode) _gainNode.gain.value = boostMultiplier;
+      }
+
+      // Aggiorna label nel menu settings
+      const valNode = $('boostValue');
+      if (valNode) valNode.textContent = `${Math.round(boostMultiplier * 100)}%`;
+    }
+  };
+
+  // changeVolume ora è solo un helper che imposta lo slider e aggiorna
+  const changeVolume = (val) => {
+    const s = $('volumeSlider'); if (!s) return;
+    // val è 0–1 (volume reale), lo mappiamo nella zona 0–1 dello slider
+    const v = Math.max(0, Math.min(1, parseFloat(val) || 0));
+    s.value = v;
+    updateVolSlider();
+  };
+
+  const savedVol = loadVol();
+  const volSlider = $('volumeSlider');
+  if (volSlider) {
+    volSlider.value = savedVol;
+    setTimeout(updateVolSlider, 100);
+  }
+  changeVolume(savedVol);
+
+  volSlider?.addEventListener('input', () => { updateVolSlider(); openVolUI(); });
+  document.querySelector('.volume-container')?.addEventListener('mouseenter', openVolUI);
+
+  $('muteBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const vid = getVideo(); if (!vid) return;
+    const s = $('volumeSlider'); if (!s) return;
+    const raw = parseFloat(s.value) || 0;
+    if (raw > 0) {
+      s.dataset.lastVal = String(raw);
+      s.value = 0;
+    } else {
+      s.value = parseFloat(s.dataset.lastVal || '1');
+    }
+    updateVolSlider(); openVolUI();
+  });
+
+  // Sincronizza boost gain quando il volume cambia (usato da keyboard handler)
+  let syncBoostGain = () => {
+    if (!_boostReady || !_gainNode) return;
+    const s = $('volumeSlider'); if (!s) return;
+    const raw = parseFloat(s.value) || 0;
+    if (raw > 1) {
+      const boostMultiplier = 1 + ((raw - 1) / 1) * 2;
+      _gainNode.gain.value = boostMultiplier;
+    } else {
+      const vid = getVideo();
+      if (_gainNode) _gainNode.gain.value = vid ? vid.volume : raw;
+    }
+  };
+
+  // Keyboard volume up/down lavora sulla barra unificata
+  const getSliderVal = () => parseFloat($('volumeSlider')?.value || '0');
+  const setSliderVal = (v) => { const s = $('volumeSlider'); if (s) { s.value = v; updateVolSlider(); } };
+
+
+  // ── Speed button — cicla tra le velocità ──
+  const SPEEDS = [1, 1.25, 1.5, 2, 0.5, 0.75];
+  _speedIdx = 0;
+  updateSpeedBtn = () => {
+    const rate = SPEEDS[_speedIdx];
+    const lbl = $('speedLabel');
+    const btn = $('speedBtn');
+    if (lbl) lbl.textContent = rate === 1 ? '1×' : `${rate}×`;
+    if (btn) btn.classList.toggle('is-active', rate !== 1);
+  };
+  $('speedBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    _speedIdx = (_speedIdx + 1) % SPEEDS.length;
+    const rate = SPEEDS[_speedIdx];
+    const vid = getVideo(); if (vid) vid.playbackRate = rate;
+    updateSpeedBtn();
+  });
+  updateSpeedBtn();
+
+  // ── Fullscreen ──
+  $('fullScreenBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const video = $('videoEl');
+    // iOS Safari: usa webkitEnterFullscreen sul video element
+    if (video && video.webkitEnterFullscreen && !document.fullscreenElement && !document.webkitFullscreenElement) {
+      video.webkitEnterFullscreen();
+      return;
+    }
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+    } else {
+      const el = document.documentElement;
+      (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
+    }
+  });
+  document.addEventListener('fullscreenchange', () => {
+    const isFull = !!document.fullscreenElement;
+    const playerIcon = $('fullScreenBtn')?.querySelector('.material-symbols-outlined');
+    if (playerIcon) playerIcon.textContent = isFull ? 'close_fullscreen' : 'open_in_full';
+    const heroIcon = $('heroFullscreenBtn')?.querySelector('.material-symbols-outlined');
+    if (heroIcon) heroIcon.textContent = isFull ? 'close_fullscreen' : 'open_in_full';
+  });
+  // iOS Safari webkitfullscreenchange
+  document.addEventListener('webkitfullscreenchange', () => {
+    const isFull = !!document.webkitFullscreenElement;
+    const playerIcon = $('fullScreenBtn')?.querySelector('.material-symbols-outlined');
+    if (playerIcon) playerIcon.textContent = isFull ? 'close_fullscreen' : 'open_in_full';
+  });
+
+  // ── Recording ──
+  let _rec = null, _recChunks = [], _recTimer = null, _recStart = null;
+  let _recAudioCtx = null, _recSrcNode = null, _recGainNode = null, _recDestNode = null;
+  const updateRecUI = () => {
+    const btn = $('recordBtn'), icon = $('recordIcon'), timer = $('recordTimer');
+    const floating = $('recFloatingBadge'), fTimer = $('recFloatingTimer');
+    const overlayVisible = $('playerOverlay')?.classList.contains('active');
+    const active = _rec?.state === 'recording';
+    if (btn) btn.classList.toggle('is-recording', active);
+    if (icon) icon.textContent = active ? 'downloading' : 'radio_button_checked';
+    if (!active) { if (timer) timer.textContent = ''; if (fTimer) fTimer.textContent = '00:00'; }
+    else {
+      const s = Math.max(0, Math.floor((Date.now() - _recStart) / 1000));
+      const txt = `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+      if (timer) timer.textContent = txt; if (fTimer) fTimer.textContent = txt;
+    }
+    if (floating) { const show = active && !overlayVisible; floating.hidden = !show; floating.style.display = show ? 'inline-flex' : 'none'; }
+  };
+  $('recordBtn')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (_rec?.state === 'recording') { _rec.stop(); clearInterval(_recTimer); return; }
+    const vid = getVideo(); if (!vid) return;
+    const cs = vid.captureStream?.() || vid.mozCaptureStream?.(); if (!cs) return;
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    _recAudioCtx = new AudioCtx();
+    if (_recAudioCtx.state === 'suspended') await _recAudioCtx.resume();
+    _recSrcNode = _recAudioCtx.createMediaElementSource(vid);
+    _recGainNode = _recAudioCtx.createGain(); _recGainNode.gain.value = 1;
+    _recDestNode = _recAudioCtx.createMediaStreamDestination();
+    _recSrcNode.connect(_recGainNode); _recGainNode.connect(_recAudioCtx.destination); _recGainNode.connect(_recDestNode);
+    const fs = new MediaStream([...cs.getVideoTracks(), ..._recDestNode.stream.getAudioTracks()]);
+    _recChunks = [];
+    const mime = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(t => MediaRecorder.isTypeSupported(t)) || '';
+    _rec = new MediaRecorder(fs, mime ? { mimeType: mime } : {});
+    _rec.ondataavailable = e => { if (e.data?.size) _recChunks.push(e.data); };
+    _rec.onstop = () => {
+      const blob = new Blob(_recChunks, { type: mime || 'video/webm' });
+      if (blob.size > 0) {
+        const chName = (state.activeChannel?.name || 'rec').replace(/[^a-z0-9]/gi,'_').slice(0,60);
+        const now = new Date();
+        const ts = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}`;
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${chName}_${ts}.webm`; a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      }
+      _recChunks = []; _rec = null; clearInterval(_recTimer);
+      try { _recSrcNode?.disconnect(_recDestNode); } catch {} updateRecUI();
+    };
+    _rec.start(1000); _recStart = Date.now();
+    _recTimer = setInterval(updateRecUI, 1000); updateRecUI(); vid.play().catch(()=>{});
+  });
+
+  const obs = new MutationObserver(updateRecUI);
+  const overlay = $('playerOverlay'); if (overlay) obs.observe(overlay, { attributes: true, attributeFilter: ['class'] });
+
+  // ── Controlli da Tastiera ──
+  document.addEventListener('keydown', (e) => {
+    if (!state.playerOpen) return;
+    if (e.key === 'Escape') {
+      closePlayer();
+      return;
+    }
+    if (document.activeElement.tagName === 'INPUT') return;
+
+    switch (e.key) {
+      case 'ArrowRight': { e.preventDefault(); navigateChannel(1); break; }
+      case 'ArrowLeft':  { e.preventDefault(); navigateChannel(-1); break; }
+      case 'ArrowUp': {
+        e.preventDefault();
+        const vUp = Math.min(2, (getSliderVal() || 0) + 0.05);
+        setSliderVal(vUp); openVolUI();
+        break;
+      }
+      case 'ArrowDown': {
+        e.preventDefault();
+        const vDown = Math.max(0, (getSliderVal() || 0) - 0.05);
+        setSliderVal(vDown); openVolUI();
+        break;
+      }
+      case ' ': { e.preventDefault(); $('playerPlay').click(); break; }
+    }
+  });
+
+  updateRecUI();
+}
+/* ── Online users ── */
+function formatNum(n) {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.0', '') + 'M';
+  if (n >= 1_000)     return (n / 1_000).toFixed(1).replace('.0', '') + 'K';
+  return String(n);
+}
+
+async function fetchOnlineUsers() {
+  try {
+    const res = await fetch(`${CONFIG.STATS_URL}/status`, { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const online  = data?.onlineUsers    ?? null;
+    const unique  = data?.uniqueVisitors ?? null;
+    if (online !== null) {
+      const el = $('onlineCount');
+      if (el) el.textContent = formatNum(online);
+    }
+    if (unique !== null) {
+      const el = $('uniqueCount');
+      if (el) el.textContent = formatNum(unique);
+    }
+  } catch {}
+}
+async function pingServer() {
+  try { await fetch(`${CONFIG.STATS_URL}/ping`, { method: 'POST', cache: 'no-store' }); } catch {}
+}
+function startOnlineRefresh() {
+  pingServer();
+  fetchOnlineUsers();
+  setInterval(pingServer, 20_000);
+  setInterval(fetchOnlineUsers, 5_000);
+}
+
+/* ── Hero refresh ── */
+function startHeroRefresh() {
+  setInterval(() => {
+    if (state.activeChannel) updateHero(state.activeChannel);
+  }, 30000);
+}
+
+/* ── Player EPG progress refresh ── */
+function startPlayerProgressRefresh() {
+  setInterval(() => {
+    if (!state.playerOpen || !state.activeChannel) return;
+    const epg = getCurrent(state.activeChannel);
+    const fill = $('playerProgress');
+    if (epg) {
+      if (fill) { fill.style.width = `${epg.pct}%`; fill.classList.remove('is-buffer'); }
+      const titleEl = $('playerProgramTitle');
+      if (titleEl && !titleEl.textContent) titleEl.textContent = epg.title || '';
+    } else {
+      if (fill) fill.classList.add('is-buffer');
+    }
+  }, 10000);
+}
+
+/* ── Init ── */
+/* ── Profile ── */
+const AVATAR_KEY = 'xvb3.avatar';
+const NAME_KEY   = 'xvb3.username';
+
+function loadProfile() {
+  const avatarBtn = $('avatarBtn');
+  const avatar    = localStorage.getItem(AVATAR_KEY);
+  const name      = localStorage.getItem(NAME_KEY) || '';
+  const isMobile  = document.body.classList.contains('is-mobile');
+
+  if (avatarBtn) {
+    if (isMobile) {
+      // Mobile: solo immagine rotonda o icona
+      const img  = avatarBtn.querySelector('#topbarAvatarImg');
+      const icon = avatarBtn.querySelector('#topbarAvatarIcon');
+      if (avatar && img) {
+        img.src = avatar;
+        img.classList.add('loaded');
+        if (icon) icon.style.display = 'none';
+      }
+      avatarBtn.onclick = () => { window.location.href = 'settings.html?tab=profile'; };
+    } else {
+      const img = avatar
+        ? `<img src="${avatar}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+        : `<span class="material-symbols-outlined" style="font-size:20px">account_circle</span>`;
+      const nameHtml = name
+        ? `<span style="font-size:13px;font-weight:600;color:rgba(255,255,255,.85);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>`
+        : '';
+      avatarBtn.innerHTML = img + nameHtml;
+      avatarBtn.style.cssText = name
+        ? 'display:flex;align-items:center;gap:7px;padding:0 12px 0 6px;border-radius:999px;width:auto;'
+        : '';
+      avatarBtn.onclick = () => { window.location.href = 'settings.html?tab=profile'; };
+    }
+  }
+}
+
+/* ── Empty state (no playlists) ── */
+function showEmptyState() {
+  const app = document.getElementById('app');
+  if (app) app.style.display = 'none';
+  const topbar = document.getElementById('topbar');
+  if (topbar) topbar.style.display = 'none';
+
+  let el = document.getElementById('xvb3Empty');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'xvb3Empty';
+    el.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#0f1014;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;font-family:"Google Sans","Roboto",sans-serif;';
+    el.innerHTML = `
+      <img src="assets/icon.jpg" alt="XVB" style="width:72px;height:72px;border-radius:20px;box-shadow:0 4px 24px rgba(0,0,0,.5)">
+      <div style="text-align:center">
+        <div style="font-size:1.2rem;font-weight:700;color:#fff;margin-bottom:8px">No playlists found</div>
+        <div style="font-size:.88rem;color:rgba(255,255,255,.45)">Add a playlist in Settings to get started.</div>
+      </div>
+      <a href="settings.html" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:#d0bcff;color:#1a0a3a;border-radius:999px;font-weight:700;font-size:.9rem;text-decoration:none">
+        <span style="font-family:'Material Symbols Outlined';font-variation-settings:'FILL' 1">settings</span>
+        Open Settings
+      </a>`;
+    document.body.appendChild(el);
+  }
+
+  // Ricarica automaticamente se l'utente aggiunge una playlist dal settings
+  if ('BroadcastChannel' in window) {
+    const bc = new BroadcastChannel('xvb_playlists_v2');
+    bc.onmessage = async (ev) => {
+      if (ev?.data?.type !== 'changed') return;
+      bc.close();
+      window.location.reload();
+    };
+  }
+}
+
+/* ── Loading screen ── */
+function showLoading(msg = 'Loading…') {
+  let el = document.getElementById('xvb3Loading');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'xvb3Loading';
+    el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0f1014;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;font-family:"Google Sans","Roboto",sans-serif;transition:opacity .4s ease;';
+    el.innerHTML = `
+      <img src="assets/icon.jpg" alt="XVB" style="width:72px;height:72px;border-radius:20px;box-shadow:0 4px 24px rgba(0,0,0,.5)">
+      <div id="xvb3LoadingMsg" style="font-size:.9rem;color:rgba(255,255,255,.5)">${msg}</div>
+      <div style="width:180px;height:2px;background:rgba(255,255,255,.1);border-radius:999px;overflow:hidden">
+        <div id="xvb3LoadingBar" style="height:100%;background:#d0bcff;border-radius:999px;width:30%;animation:loadSlide 1.2s ease-in-out infinite alternate"></div>
+      </div>`;
+    const s = document.createElement('style');
+    s.textContent = '@keyframes loadSlide{from{margin-left:0}to{margin-left:70%}}';
+    el.appendChild(s);
+    document.body.appendChild(el);
+  }
+  const msgEl = document.getElementById('xvb3LoadingMsg');
+  if (msgEl) msgEl.textContent = msg;
+}
+
+function hideLoading() {
+  const el = document.getElementById('xvb3Loading');
+  if (!el) return;
+  el.style.opacity = '0';
+  setTimeout(() => el.remove(), 400);
+}
+
+/* ── Init ── */
+async function init() {
+  // ── Mobile detection ──
+  const isMobile = document.querySelector('meta[name="mobile-page"]') !== null;
+  if (isMobile) document.body.classList.add('is-mobile');
+
+  // ── openSettings redirect ──
+  if (new URLSearchParams(window.location.search).get('openSettings') === '1') {
+    window.location.replace('settings.html');
+    return;
+  }
+
+  showLoading('Loading channels…');
+
+  // ── Carica playlist ──
+  const channels = await loadPlaylist();
+
+  if (!channels.length) {
+    hideLoading();
+
+    // Prima visita assoluta → welcome step 1
+    if (!localStorage.getItem('xvb3.firstRun')) {
+      window.location.replace('welcome.html');
+      return;
+    }
+
+    if (sessionStorage.getItem('xvb3.fromWelcome')) {
+      sessionStorage.removeItem('xvb3.fromWelcome');
+      showEmptyState();
+      return;
+    }
+
+    sessionStorage.setItem('xvb3.fromWelcome', '1');
+    window.location.replace('welcome.html?noPlaylists=1');
+    return;
+  }
+
+  localStorage.setItem('xvb3.firstRun', 'done');
+  loadProfile();
+  showLoading('Loading guide…');
+
+  initPlayer({
+    video:      $('videoEl'),
+    iframe:     $('videoIframe'),
+    shield:     $('iframeShield'),
+    onPlay: ch => {
+      hideStatus();
+      console.log('[XVB3] Playing:', ch.name);
+    },
+    onStop: () => {
+      hideStatus();
+      console.log('[XVB3] Stopped');
+    },
+    onError: msg => {
+      showError(msg);
+      console.error('[XVB3] Error:', msg);
+    },
+    onProgress: (pct) => {
+      if (!state.playerOpen || !state.activeChannel) return;
+      const epg = getCurrent(state.activeChannel);
+      if (!epg) {
+        const fill = $('playerProgress');
+        if (fill) { fill.style.width = `${pct}%`; fill.classList.add('is-buffer'); }
+      }
+    },
+  });
+
+  bindWatchNow();
+  bindPlayerControls();
+  initWheelScroll();
+
+  // Frecce categorie
+  const catBar = $('categoriesBar');
+  $('catPrev')?.addEventListener('click', () => { catBar?.scrollBy({ left: -200, behavior: 'smooth' }); setTimeout(() => updateCatArrows(catBar), 300); });
+  $('catNext')?.addEventListener('click', () => { catBar?.scrollBy({ left:  200, behavior: 'smooth' }); setTimeout(() => updateCatArrows(catBar), 300); });
+
+  // ── BroadcastChannel: playlist changes ──
+  if ('BroadcastChannel' in window) {
+    const bcPl = new BroadcastChannel('xvb_playlists_v2');
+    bcPl.onmessage = async (ev) => {
+      if (ev?.data?.type !== 'changed') return;
+      const updated = await loadPlaylist();
+      if (updated.length) {
+        const favCh = getFavouritesAsGroup();
+        const combined = [...favCh, ...updated];
+        const cat = combined[0]?.group || 'Other';
+        renderCategories(combined);
+        renderChannels(combined.filter(ch => ch.group === cat));
+      }
+    };
+    const bcProfile = new BroadcastChannel('xvb_profile');
+    bcProfile.onmessage = (ev) => { if (ev?.data?.type === 'profile_updated') loadProfile(); };
+  }
+
+  // ── Bottone Preferiti ──
+  $('heroFavBtn')?.addEventListener('click', () => {
+    const ch = state.activeChannel;
+    if (!ch) return;
+    const nowFav = toggleFavourite(ch);
+    updateFavBtn(ch);
+    const allCh = state.allChannels;
+    const favCh = getFavouritesAsGroup();
+    const combined = [...favCh, ...allCh];
+    renderCategories(combined);
+    const activeCat = document.querySelector('.cat-btn.active')?.dataset.cat;
+    if (activeCat) renderChannels(combined.filter(c => c.group === activeCat));
+    setTimeout(() => updateCatArrows($('categoriesBar')), 150);
+  });
+
+  // ── Bottone Fullscreen Hero ──
+  $('heroFullscreenBtn')?.addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+    }
+  });
+
+  document.addEventListener('fullscreenchange', () => {
+    const isFull = !!document.fullscreenElement;
+    const heroIcon = $('heroFullscreenBtn')?.querySelector('.material-symbols-outlined');
+    if (heroIcon) heroIcon.textContent = isFull ? 'close_fullscreen' : 'open_in_full';
+    const playerIcon = $('fullScreenBtn')?.querySelector('.ctrl-icon');
+    if (playerIcon) playerIcon.textContent = isFull ? 'close_fullscreen' : 'open_in_full';
+  });
+
+  // ── Render iniziale ──
+  const favCh = getFavouritesAsGroup();
+  const allWithFav = [...favCh, ...channels];
+  const firstCat = allWithFav[0]?.group || 'Other';
+  renderCategories(allWithFav);
+  renderChannels(allWithFav.filter(ch => ch.group === firstCat));
+  hideLoading();
+
+  setTimeout(() => updateCatArrows($('categoriesBar')), 200);
+
+  startAutoRefresh();
+  startHeroRefresh();
+  startPlayerProgressRefresh();
+  startOnlineRefresh();
+
+  // Search mobile — input fisso nella topbar
+  if (isMobile) {
+    const searchInput = $('searchInput');
+    searchInput?.addEventListener('input', () => {
+      const q = searchInput.value.trim().toLowerCase();
+      if (!q) {
+        const activeCat = document.querySelector('.cat-btn.active')?.dataset.cat;
+        renderChannels(channels.filter(ch => ch.group === (activeCat || firstCat)));
+        return;
+      }
+      const results = channels.filter(ch => ch.name.toLowerCase().includes(q)).map(ch => ({ ...ch, group: 'Search Results' }));
+      renderChannels(results);
+    });
+  }
+
+  // Search toggle (mobile - legacy overlay, non usato con nuovo layout)
+  $('searchToggleBtn')?.addEventListener('click', () => {
+    const overlay = $('searchOverlay');
+    if (overlay) { overlay.hidden = false; $('searchInput')?.focus(); }
+  });
+  $('searchClose')?.addEventListener('click', () => {
+    const overlay = $('searchOverlay');
+    if (overlay) { overlay.hidden = true; }
+    const searchInput = $('searchInput');
+    if (searchInput) { searchInput.value = ''; }
+    const activeCat = document.querySelector('.cat-btn.active')?.dataset.cat;
+    renderChannels(channels.filter(ch => ch.group === (activeCat || firstCat)));
+  });
+
+  // Drag scroll categorie su mobile
+  if (isMobile) {
+    const catBar = $('categoriesBar');
+    if (catBar) {
+      let isDown = false, startX = 0, scrollLeft = 0;
+      catBar.addEventListener('touchstart', e => {
+        isDown = true; startX = e.touches[0].pageX - catBar.offsetLeft;
+        scrollLeft = catBar.scrollLeft; catBar.classList.add('dragging');
+      }, { passive: true });
+      catBar.addEventListener('touchmove', e => {
+        if (!isDown) return;
+        const x = e.touches[0].pageX - catBar.offsetLeft;
+        catBar.scrollLeft = scrollLeft - (x - startX);
+      }, { passive: true });
+      catBar.addEventListener('touchend', () => { isDown = false; catBar.classList.remove('dragging'); });
+    }
+  }
+
+  // Search toggle (desktop)
+  const searchWrap = $('searchWrap');
+  const searchInput = $('searchInput');
+  searchWrap?.addEventListener('click', () => {
+    if (!searchWrap.classList.contains('open')) {
+      searchWrap.classList.add('open');
+      searchInput?.focus();
+    }
+  });
+  document.addEventListener('click', (e) => {
+    if (searchWrap && !searchWrap.contains(e.target)) {
+      searchWrap.classList.remove('open');
+      if (searchInput) { searchInput.value = ''; searchInput.blur(); }
+    }
+  });
+  searchInput?.addEventListener('input', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    if (!q) {
+      const activeCat = document.querySelector('.cat-btn.active')?.dataset.cat;
+      renderChannels(channels.filter(ch => ch.group === (activeCat || firstCat)));
+      return;
+    }
+    const results = channels.filter(ch => ch.name.toLowerCase().includes(q)).map(ch => ({ ...ch, group: 'Search Results' })); 
+    renderChannels(results);
+  });
+
+  // ── NUOVO: Navigazione Home tramite Tastiera (Cards) ──
+  document.addEventListener('keydown', (e) => {
+    if (state.playerOpen || document.activeElement.tagName === 'INPUT') return;
+
+    const activeCard = document.querySelector('.channel-card.active');
+    if (!activeCard) return;
+
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const row = activeCard.closest('.channel-row');
+      const cards = Array.from(row.querySelectorAll('.channel-card'));
+      const currentIndex = cards.indexOf(activeCard);
+      let nextIndex = currentIndex + (e.key === 'ArrowRight' ? 1 : -1);
+
+      if (nextIndex >= 0 && nextIndex < cards.length) {
+        const nextCard = cards[nextIndex];
+        nextCard.click();
+        nextCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      $('watchNowBtn')?.click();
+    }
+  });
+
+  // EPG in background
+  fetchEpg().then(() => {
+    if (state.activeChannel) updateHero(state.activeChannel);
+    // Mobile: re-renderizza le card con anteprime EPG ora disponibili
+    if (isMobile) {
+      const activeCat = document.querySelector('.cat-btn.active')?.dataset.cat || firstCat;
+      const favCh2 = getFavouritesAsGroup();
+      const combined2 = [...favCh2, ...channels];
+      renderChannels(combined2.filter(ch => ch.group === activeCat));
+    }
+  }).catch(e => console.warn('[XVB3] EPG background load failed:', e));
+}
+
+document.addEventListener('DOMContentLoaded', init);

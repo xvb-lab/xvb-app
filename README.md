@@ -5,8 +5,8 @@
 <h1 align="center">XVB3</h1>
 <p align="center">Extended Video Broadcast — Version 3</p>
 <p align="center">
-  <a href="https://">Live App coming soon</a> &nbsp;·&nbsp;
-  <a href="https://">Settings coming soon</a> &nbsp;·&nbsp;
+  <a href="https://xvb-app.pages.dev/">Live App</a> &nbsp;·&nbsp;
+  <a href="https://xvb-app.pages.dev/settings.html">Settings</a> &nbsp;·&nbsp;
   MIT License
 </p>
 
@@ -78,12 +78,13 @@ The application loads M3U playlists, matches channels against XMLTV programme gu
 ## File Structure
 
 ```
-xvb-3/
+xvb-app/
 ├── index.html          # Device detection redirect (desktop / mobile)
 ├── desktop.html        # Desktop application shell
 ├── mobile.html         # Mobile application shell
 ├── settings.html       # Settings panel (shared, responsive)
 ├── welcome.html        # First-run onboarding screen
+├── maintenance.html    # Maintenance page
 ├── js/
 │   ├── app.js          # Main application logic, rendering, UI
 │   ├── player.js       # Playback engine selection and control
@@ -95,12 +96,12 @@ xvb-3/
 ├── css/
 │   ├── style.css       # Desktop styles
 │   └── mobile.css      # Mobile styles
-├── assets/             # Logos and static assets
-├── epg/                # XMLTV guide files (auto-updated)
-├── playlists/          # Generated M3U playlists
-└── scripts/
-    └── build_m3u.py    # Playlist build script (GitHub Actions)
+└── assets/             # Logos and static assets
 ```
+
+**EPG** — managed separately in [xvb-lab/xvb-epg](https://github.com/xvb-lab/xvb-epg), auto-updated every 6 hours via GitHub Actions.
+
+**Playlists** — hosted on Cloudflare R2, managed independently.
 
 ---
 
@@ -124,16 +125,16 @@ The `license-details` field accepts a colon-separated hex `kid:key` pair. XVB3 r
 
 ## EPG Sources
 
-Built-in XMLTV sources updated automatically every 6 hours via GitHub Actions:
+EPG guides are managed in a separate repository: [xvb-lab/xvb-epg](https://github.com/xvb-lab/xvb-epg), updated automatically every 6 hours via GitHub Actions.
 
-| Source | File |
-|--------|------|
-| Italy DTT | `epg/epg-it.xml` |
-| United Kingdom | `epg/epg-uk.xml` |
-| Spain | `epg/epg-es.xml` |
-| France | `epg/epg-fr.xml` |
-| PlutoTV Italy | `epg/epg-plutotv-it.xml` |
-| Samsung TV+ Italy | `epg/epg-samsung-it.xml` |
+| Source | URL |
+|--------|-----|
+| Italy DTT | `https://raw.githubusercontent.com/xvb-lab/xvb-epg/main/epg/epg-it.xml` |
+| United Kingdom | `https://raw.githubusercontent.com/xvb-lab/xvb-epg/main/epg/epg-uk.xml` |
+| Spain | `https://raw.githubusercontent.com/xvb-lab/xvb-epg/main/epg/epg-es.xml` |
+| France | `https://raw.githubusercontent.com/xvb-lab/xvb-epg/main/epg/epg-fr.xml` |
+| PlutoTV Italy | `https://raw.githubusercontent.com/xvb-lab/xvb-epg/main/epg/epg-plutotv-it.xml` |
+| Samsung TV+ Italy | `https://raw.githubusercontent.com/xvb-lab/xvb-epg/main/epg/epg-samsung-it.xml` |
 
 Custom XMLTV URLs can be added through the Settings panel. Both plain XML and `.gz` compressed feeds are supported.
 
@@ -156,11 +157,7 @@ Engine selection is automatic based on URL extension. A HEAD request is used as 
 
 ## Automated Workflows
 
-Two GitHub Actions workflows run on schedule:
-
-**EPG update** — runs every 6 hours, downloads XMLTV guides from upstream sources and commits updated files to `epg/`.
-
-**Playlist build** — runs daily at 06:00 UTC, executes `scripts/build_m3u.py` which fetches channel data from ZapprTV, resolves stream URLs, applies tvg-id mappings and writes the output M3U to `playlists/`.
+EPG guides are updated automatically every 6 hours in the [xvb-lab/xvb-epg](https://github.com/xvb-lab/xvb-epg) repository via GitHub Actions. No workflows run in this repository.
 
 ---
 

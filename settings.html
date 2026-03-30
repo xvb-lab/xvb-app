@@ -1278,7 +1278,7 @@
 
     // IP + geo
     try {
-      const res = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
+      const res = await fetch('https://ipconfig.io/json', { cache: 'no-store' });
       const d = await res.json();
       const ipEl = document.getElementById('infoIP');
       const countryEl = document.getElementById('infoCountry');
@@ -1286,10 +1286,10 @@
       const ispEl = document.getElementById('infoISP');
       if (ipEl) ipEl.textContent = d.ip || '—';
       if (countryEl) {
-        const flag = d.country_code
-          ? String.fromCodePoint(...[...d.country_code].map(c => 0x1F1A5 + c.charCodeAt(0)))
+        const flag = d.country_iso
+          ? String.fromCodePoint(...[...d.country_iso].map(c => 0x1F1A5 + c.charCodeAt(0)))
           : '';
-        countryEl.textContent = `${flag} ${d.country_name || '—'}`;
+        countryEl.textContent = `${flag} ${d.country || '—'}`;
       }
       if (cityEl) cityEl.textContent = d.city || '—';
       if (ispEl) ispEl.textContent = d.org || '—';

@@ -378,6 +378,24 @@ function updateStreamMeta(ch) {
       el.appendChild(makeBadge(label, 'badge-meta'));
     }
   }
+
+  // Views badge
+  if (ch?.url) {
+    fetchViews(ch.url).then(views => {
+      if (views === null || views === 0) return;
+      const label = views >= 1000000
+        ? (views / 1000000).toFixed(1).replace('.0', '') + 'M Views'
+        : views >= 1000
+        ? (views / 1000).toFixed(1).replace('.0', '') + 'K Views'
+        : `${views} ${views !== 1 ? 'Views' : 'View'}`;
+      const badge = makeBadge(label, 'badge-views');
+      badge.style.display = 'inline-flex';
+      badge.style.alignItems = 'center';
+      badge.style.gap = '3px';
+      badge.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">visibility</span> ${label}`;
+      el.appendChild(badge);
+    });
+  }
 }
 
 function updateHero(ch) {
@@ -943,6 +961,14 @@ function bindWatchNow() {
     openPlayer();
     play(state.activeChannel);
     showSpinner();
+    pingView(state.activeChannel.url).then(views => {
+      const el = $('heroViewCount');
+      if (el && views !== null) {
+        el.textContent = views >= 1000
+          ? (views / 1000).toFixed(1).replace('.0', '') + 'K'
+          : String(views);
+      }
+    });
     
     updatePlayerBg(state.activeChannel);
     const ch = state.activeChannel;
@@ -1374,52 +1400,32 @@ function bindPlayerControls() {
 
   updateRecUI();
 }
-/* ── Online users ── */
-function formatNum(n) {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.0', '') + 'M';
-  if (n >= 1_000)     return (n / 1_000).toFixed(1).replace('.0', '') + 'K';
-  return String(n);
-}
-
-async function fetchOnlineUsers() {
+/* ── Views ── */
+async function pingView(channelUrl) {
+  if (!channelUrl || !CONFIG.STATS_URL) return;
   try {
-    const res = await fetch(`${CONFIG.STATS_URL}/status`, { cache: 'no-store' });
-    if (!res.ok) return;
-    const data = await res.json();
-    const online  = data?.onlineUsers    ?? null;
-    const unique  = data?.uniqueVisitors ?? null;
-    if (online !== null) {
-      const el = $('onlineCount');
-      if (el) el.textContent = formatNum(online);
-    }
-    if (unique !== null) {
-      const el = $('uniqueCount');
-      if (el) el.textContent = formatNum(unique);
-    }
-  } catch {}
-}
-// Genera sessionId univoco per questa sessione browser
-const _sessionId = (() => {
-  let id = sessionStorage.getItem('xvb.sid');
-  if (!id) { id = Math.random().toString(36).slice(2) + Date.now().toString(36); sessionStorage.setItem('xvb.sid', id); }
-  return id;
-})();
-
-async function pingServer() {
-  try {
-    await fetch(`${CONFIG.STATS_URL}/ping`, {
+    const res = await fetch(`${CONFIG.STATS_URL}/view`, {
       method: 'POST',
       cache: 'no-store',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: _sessionId }),
+      body: JSON.stringify({ channelUrl }),
     });
-  } catch {}
+    const data = await res.json();
+    return data?.views ?? null;
+  } catch { return null; }
 }
+
+async function fetchViews(channelUrl) {
+  if (!channelUrl || !CONFIG.STATS_URL) return null;
+  try {
+    const res = await fetch(`${CONFIG.STATS_URL}/views?url=${encodeURIComponent(channelUrl)}`, { cache: 'no-store' });
+    const data = await res.json();
+    return data?.views ?? null;
+  } catch { return null; }
+}
+
 function startOnlineRefresh() {
-  pingServer();
-  fetchOnlineUsers();
-  setInterval(pingServer, 20_000);
-  setInterval(fetchOnlineUsers, 5_000);
+  // rimosso — solo views per canale
 }
 
 /* ── Hero refresh ── */

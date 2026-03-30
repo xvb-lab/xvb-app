@@ -181,6 +181,7 @@ img { display:block; }
 /* Rating age badges */
 .stream-badge.badge-rating { }
 .stream-badge.badge-meta { background: none; border-color: transparent; text-transform: lowercase; letter-spacing: 0; color: rgba(255,255,255,.5); }
+.stream-badge.badge-views { background: none; border-color: transparent; text-transform: none; letter-spacing: 0; color: rgba(255,255,255,.5); }
 
 /* Hero actions row */
 #heroActions {

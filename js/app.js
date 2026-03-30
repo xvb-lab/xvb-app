@@ -649,16 +649,27 @@ function buildCard(ch) {
     textDiv.appendChild(titleEl);
     textDiv.appendChild(chanEl);
 
-    // Menu ⋮
-    const menuBtn = document.createElement('button');
-    menuBtn.className = 'icon-btn card-menu-btn';
-    menuBtn.innerHTML = '<span class="material-symbols-outlined">more_vert</span>';
-    menuBtn.addEventListener('click', e => e.stopPropagation());
+    // Views badge — a destra
+    const viewsEl = document.createElement('div');
+    viewsEl.className = 'card-views';
+    viewsEl.style.cssText = 'display:flex;align-items:center;gap:3px;font-size:.75rem;color:rgba(255,255,255,.4);flex-shrink:0;margin-left:auto;';
+    viewsEl.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:\'FILL\' 1,\'wght\' 400,\'GRAD\' 0,\'opsz\' 24">visibility</span><span class="card-views-count"></span>';
 
     details.appendChild(avatar);
     details.appendChild(textDiv);
-    details.appendChild(menuBtn);
+    details.appendChild(viewsEl);
     card.appendChild(details);
+
+    // Carica views async
+    fetchViews(ch.url).then(views => {
+      if (views === null || views === 0) { viewsEl.style.display = 'none'; return; }
+      const countEl = viewsEl.querySelector('.card-views-count');
+      if (countEl) countEl.textContent = views >= 1000000
+        ? (views/1000000).toFixed(1).replace('.0','') + 'M'
+        : views >= 1000
+        ? (views/1000).toFixed(1).replace('.0','') + 'K'
+        : String(views);
+    });
 
     // Colore dinamico sul nome canale
     if (ch.logo) {

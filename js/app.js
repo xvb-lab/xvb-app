@@ -1094,6 +1094,7 @@ async function bindPlayerControls() {
     state.activeChannel = nextCh;
     play(nextCh);
     showSpinner();
+    pingView(nextCh.url);
     
     updateHero(nextCh);
     updatePlayerBg(nextCh);

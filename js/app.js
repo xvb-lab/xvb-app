@@ -345,7 +345,25 @@ function updateHero(ch) {
   const next = getNext(ch, 5);
 
   const img = epg?.icon || ch.logo || '';
-  const heroBg = $('heroBg');
+  const isEpgIcon = !!epg?.icon;
+  const heroBg     = $('heroBg');
+  const heroBgBlur = $('heroBgBlur');
+
+  // Reset completo prima di ogni canale
+  function resetHeroBg() {
+    heroBg.style.backgroundImage    = 'none';
+    heroBg.style.backgroundSize     = 'cover';
+    heroBg.style.backgroundPosition = 'center top';
+    heroBg.style.backgroundRepeat   = 'no-repeat';
+    heroBg.style.backgroundColor    = '';
+    if (heroBgBlur) {
+      heroBgBlur.style.opacity         = '0';
+      heroBgBlur.style.backgroundImage = 'none';
+      heroBgBlur.style.filter          = 'blur(40px) brightness(.5) saturate(1.4)';
+      heroBgBlur.style.transform       = 'scale(1.08)';
+    }
+  }
+
   if (heroBg) {
     if (img) {
       heroBg.classList.add('skeleton');
@@ -353,10 +371,51 @@ function updateHero(ch) {
       probe.onload = () => heroBg.classList.remove('skeleton');
       probe.onerror = () => heroBg.classList.remove('skeleton');
       probe.src = img;
-      heroBg.style.backgroundImage = `url(${img})`;
+
+      if (isEpgIcon) {
+        // ── Copertina EPG ──
+        resetHeroBg();
+        heroBg.style.backgroundImage = `url(${img})`;
+        const detectImg = new Image();
+        detectImg.onload = () => {
+          const isVertical = detectImg.naturalHeight > detectImg.naturalWidth;
+          if (isVertical) {
+            heroBg.style.backgroundSize     = 'contain';
+            heroBg.style.backgroundPosition = 'center center';
+            if (heroBgBlur) {
+              heroBgBlur.style.backgroundImage = `url(${img})`;
+              heroBgBlur.style.opacity         = '1';
+            }
+          } else {
+            heroBg.style.backgroundSize     = 'cover';
+            heroBg.style.backgroundPosition = 'center top';
+          }
+        };
+        detectImg.onerror = () => {
+          heroBg.style.backgroundSize     = 'cover';
+          heroBg.style.backgroundPosition = 'center top';
+        };
+        detectImg.src = img;
+
+      } else {
+        // ── Solo logo canale — sfondo col colore del logo ──
+        resetHeroBg();
+        extractDominantColor(img, color => {
+          const r = color?.r ?? 20, g = color?.g ?? 18, b = color?.b ?? 30;
+          const dr = Math.round(r * 0.3);
+          const dg = Math.round(g * 0.3);
+          const db = Math.round(b * 0.3);
+          heroBg.style.backgroundImage    = `url(${img})`;
+          heroBg.style.backgroundSize     = '300px';
+          heroBg.style.backgroundPosition = 'center center';
+          heroBg.style.backgroundRepeat   = 'no-repeat';
+          heroBg.style.backgroundColor    = `rgb(${dr},${dg},${db})`;
+        });
+      }
+
     } else {
+      resetHeroBg();
       heroBg.classList.remove('skeleton');
-      heroBg.style.backgroundImage = 'none';
     }
   }
 
@@ -399,8 +458,12 @@ function updateHero(ch) {
   if (epg && heroFill) {
     heroFill.style.width = `${epg.pct}%`;
     heroProgressWrap?.classList.add('visible');
+    const heroTimeStart = $('heroTimeStart');
+    if (heroTimeStart) heroTimeStart.textContent = fmtTime(new Date(epg.start));
   } else {
     heroProgressWrap?.classList.remove('visible');
+    const heroTimeStart = $('heroTimeStart');
+    if (heroTimeStart) heroTimeStart.textContent = '';
   }
 
   const heroNext = $('heroNext');

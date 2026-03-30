@@ -28,6 +28,8 @@ export const CONFIG = {
   IFRAME_PATTERNS: [
     "pluto.tv/live-tv/watch/",
     "app-philipsnovatek",
+    "livetvuk.com/embed/",
+    "livehdtv.com/",
   ],
 
   // ── EPG refresh ────────────────────────────────

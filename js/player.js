@@ -131,7 +131,9 @@ export async function play(ch) {
 
   // ── IFRAME ────────────────────────────────────
   if (isIframe && _iframe) {
-    _iframe.src = url;
+    // Aggiungi autoplay all'URL
+    const iframeSrc = url.includes('?') ? `${url}&autoplay=1` : `${url}?autoplay=1`;
+    _iframe.src = iframeSrc;
     _iframe.style.display = 'block';
     if (_shield) _shield.style.display = 'block';
     state.isLoading = false;

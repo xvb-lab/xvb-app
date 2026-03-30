@@ -692,6 +692,17 @@ function buildCard(ch) {
       openPlayer();
       play(ch);
       showSpinner();
+      // Registra view
+      pingView(ch.url).then(views => {
+        if (views === null) return;
+        const countEl = viewsEl.querySelector('.card-views-count');
+        if (countEl) countEl.textContent = views >= 1000000
+          ? (views/1000000).toFixed(1).replace('.0','') + 'M'
+          : views >= 1000
+          ? (views/1000).toFixed(1).replace('.0','') + 'K'
+          : String(views);
+        viewsEl.style.display = 'flex';
+      });
       const logoImgEl  = $('playerLogoImg');
       const logoTextEl = $('playerLogoText');
       if (logoImgEl && logoTextEl) {

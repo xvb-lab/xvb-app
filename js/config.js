@@ -11,8 +11,7 @@ export const CONFIG = {
   EPG_URLS: [""],
 
   // ── Server ─────────────────────────────────────
-  SERVER_URL: "https://render-com-a2ck.onrender.com",
-  STATS_URL:  "https://serverpi5.ddns.net/stats",
+  STATS_URL:  "https://xvb-stats-wk.jonalinux-uk.workers.dev",
 
   // ── App ────────────────────────────────────────
   APP_NAME:    "XVB3",

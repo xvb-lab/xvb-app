@@ -55,17 +55,16 @@ function hideStatus() {
    ─────────────────────────────────────────────── */
 const _colorCache = new Map();
 
-function extractDominantColor(src, callback) {
+function extractDominantColor(src, callback, imgEl) {
   if (!src) { callback(null); return; }
   if (_colorCache.has(src)) { callback(_colorCache.get(src)); return; }
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-  img.onload = () => {
+
+  const doCanvas = (el) => {
     try {
       const c = document.createElement('canvas');
       c.width = c.height = 32;
       const ctx = c.getContext('2d');
-      ctx.drawImage(img, 0, 0, 32, 32);
+      ctx.drawImage(el, 0, 0, 32, 32);
       const data = ctx.getImageData(0, 0, 32, 32).data;
       const buckets = {};
       for (let i = 0; i < data.length; i += 4) {
@@ -78,14 +77,45 @@ function extractDominantColor(src, callback) {
         buckets[key] = (buckets[key] || 0) + 1;
       }
       const sorted = Object.entries(buckets).sort((a,b) => b[1]-a[1]);
-      if (!sorted.length) { _colorCache.set(src, null); callback(null); return; }
+      if (!sorted.length) { _colorCache.set(src, null); callback(null); return true; }
       const [r,g,b] = sorted[0][0].split(',').map(Number);
       _colorCache.set(src, { r, g, b });
       callback({ r, g, b });
-    } catch { _colorCache.set(src, null); callback(null); }
+      return true;
+    } catch { return false; }
   };
-  img.onerror = () => { _colorCache.set(src, null); callback(null); };
-  img.src = src;
+
+  // 1. Usa img element passato direttamente (già caricato, nessun CORS)
+  if (imgEl && imgEl.complete && imgEl.naturalWidth > 0) {
+    if (doCanvas(imgEl)) return;
+  }
+
+  // 2. Cerca img già nel DOM con lo stesso src
+  const domImg = document.querySelector(`img[src="${src}"]`);
+  if (domImg && domImg.complete && domImg.naturalWidth > 0) {
+    if (doCanvas(domImg)) return;
+  }
+
+  // 3. Fetch via blob (bypassa CORS)
+  fetch(src, { mode: 'cors', cache: 'force-cache' })
+    .then(r => r.blob())
+    .then(blob => {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => { doCanvas(img); URL.revokeObjectURL(url); };
+      img.onerror = () => { _colorCache.set(src, null); callback(null); };
+      img.src = url;
+    })
+    .catch(() => {
+      // 4. crossOrigin diretto
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        if (!doCanvas(img)) { _colorCache.set(src, null); callback(null); }
+      };
+      img.onerror = () => { _colorCache.set(src, null); callback(null); };
+      img.src = src;
+    });
 }
 
 // RGB → HSL
@@ -345,7 +375,25 @@ function updateHero(ch) {
   const next = getNext(ch, 5);
 
   const img = epg?.icon || ch.logo || '';
-  const heroBg = $('heroBg');
+  const isEpgIcon = !!epg?.icon;
+  const heroBg     = $('heroBg');
+  const heroBgBlur = $('heroBgBlur');
+
+  function resetHeroBg() {
+    if (!heroBg) return;
+    heroBg.style.backgroundImage    = 'none';
+    heroBg.style.backgroundSize     = 'cover';
+    heroBg.style.backgroundPosition = 'center top';
+    heroBg.style.backgroundRepeat   = 'no-repeat';
+    heroBg.style.backgroundColor    = '';
+    if (heroBgBlur) {
+      heroBgBlur.style.opacity         = '0';
+      heroBgBlur.style.backgroundImage = 'none';
+      heroBgBlur.style.filter          = 'blur(40px) brightness(.5) saturate(1.4)';
+      heroBgBlur.style.transform       = 'scale(1.08)';
+    }
+  }
+
   if (heroBg) {
     if (img) {
       heroBg.classList.add('skeleton');
@@ -353,10 +401,49 @@ function updateHero(ch) {
       probe.onload = () => heroBg.classList.remove('skeleton');
       probe.onerror = () => heroBg.classList.remove('skeleton');
       probe.src = img;
-      heroBg.style.backgroundImage = `url(${img})`;
+
+      if (isEpgIcon) {
+        resetHeroBg();
+        heroBg.style.backgroundImage = `url(${img})`;
+        const detectImg = new Image();
+        detectImg.onload = () => {
+          const isVertical = detectImg.naturalHeight > detectImg.naturalWidth;
+          heroBg.style.backgroundColor = '';
+          heroBg.style.backgroundRepeat = '';
+          if (heroBgBlur) {
+            heroBgBlur.style.filter    = 'blur(40px) brightness(.5) saturate(1.4)';
+            heroBgBlur.style.transform = 'scale(1.08)';
+            heroBgBlur.style.background = '';
+          }
+          if (isVertical) {
+            heroBg.style.backgroundSize     = 'contain';
+            heroBg.style.backgroundPosition = 'center center';
+            if (heroBgBlur) {
+              heroBgBlur.style.backgroundImage = `url(${img})`;
+              heroBgBlur.style.opacity         = '1';
+            }
+          } else {
+            heroBg.style.backgroundSize     = 'cover';
+            heroBg.style.backgroundPosition = 'center top';
+            if (heroBgBlur) heroBgBlur.style.opacity = '0';
+          }
+        };
+        detectImg.onerror = () => {
+          heroBg.style.backgroundSize     = 'cover';
+          heroBg.style.backgroundPosition = 'center top';
+        };
+        detectImg.src = img;
+      } else {
+        resetHeroBg();
+        heroBg.style.backgroundImage    = `url(${img})`;
+        heroBg.style.backgroundSize     = '300px';
+        heroBg.style.backgroundPosition = 'center center';
+        heroBg.style.backgroundRepeat   = 'no-repeat';
+        heroBg.style.backgroundColor    = '#0a0a0f';
+      }
     } else {
+      resetHeroBg();
       heroBg.classList.remove('skeleton');
-      heroBg.style.backgroundImage = 'none';
     }
   }
 
@@ -365,14 +452,18 @@ function updateHero(ch) {
 
   if (heroLogo && heroLogoText) {
     if (ch.logo) {
-      // Se c'è il logo, mostra l'immagine e nascondi il testo
       heroLogo.style.opacity = '0';
-      heroLogo.onload = () => { heroLogo.style.opacity = '1'; };
+      heroLogo.onload = () => {
+        heroLogo.style.opacity = '1';
+        extractDominantColor(ch.logo, color => {
+          if (color) applyMaterialTheme(color.r, color.g, color.b);
+          else resetMaterialTheme();
+        }, heroLogo);
+      };
       heroLogo.src = ch.logo;
       heroLogo.style.display = 'block';
       heroLogoText.style.display = 'none';
     } else {
-      // Se NON c'è il logo, nascondi l'immagine e mostra il nome del canale
       heroLogo.style.display = 'none';
       heroLogoText.textContent = ch.name || 'Canale Sconosciuto';
       heroLogoText.style.display = 'block';
@@ -399,8 +490,12 @@ function updateHero(ch) {
   if (epg && heroFill) {
     heroFill.style.width = `${epg.pct}%`;
     heroProgressWrap?.classList.add('visible');
+    const heroTimeStart = $('heroTimeStart');
+    if (heroTimeStart) heroTimeStart.textContent = fmtTime(new Date(epg.start));
   } else {
     heroProgressWrap?.classList.remove('visible');
+    const heroTimeStart = $('heroTimeStart');
+    if (heroTimeStart) heroTimeStart.textContent = '';
   }
 
   const heroNext = $('heroNext');
@@ -413,15 +508,8 @@ function updateHero(ch) {
     ).join('');
   }
 
-  // Material You — genera tema dal logo del canale
-  if (ch.logo) {
-    extractDominantColor(ch.logo, color => {
-      if (color) applyMaterialTheme(color.r, color.g, color.b);
-      else resetMaterialTheme();
-    });
-  } else {
-    resetMaterialTheme();
-  }
+  // Material You — gestito nell'onload del heroLogo sopra
+  if (!ch.logo) resetMaterialTheme();
 }
 
 /* ── Card ── */
@@ -443,7 +531,7 @@ function buildCard(ch) {
       wrap.classList.remove('skeleton');
       extractDominantColor(ch.logo, color => {
         if (color) wrap.style.background = `rgba(${color.r},${color.g},${color.b},0.15)`;
-      });
+      }, img);
     };
     img.onerror = () => {
       wrap.classList.remove('skeleton');
@@ -580,21 +668,19 @@ function buildCard(ch) {
       const progressEl = $('playerProgress');
       if (progressEl) progressEl.style.background = '';
 
-      // Aggiorna sfondo player
+      // Sfondo player
       const bg = $('playerBg');
       if (bg) bg.style.background = '#0a0a0f';
       let logoEl = document.getElementById('playerBgLogo');
       if (!logoEl) { logoEl = document.createElement('img'); logoEl.id = 'playerBgLogo'; bg?.appendChild(logoEl); }
       if (ch.logo) { logoEl.src = ch.logo; logoEl.style.display = 'block'; } else { logoEl.style.display = 'none'; }
 
-      // Estrai colore per aggiornare tema e progress
+      // Estrai colore fresco
       const _url = ch.url;
       if (ch.logo) {
-        // Svuota cache per forzare ricalcolo
         _colorCache.delete(ch.logo);
         extractDominantColor(ch.logo, color => {
           if (state.activeChannel?.url !== _url) return;
-          console.log('[PROGRESS] color:', color, 'for', ch.name);
           if (color) {
             applyMaterialTheme(color.r, color.g, color.b);
             const pal = tonalPalette(color.r, color.g, color.b);
@@ -721,7 +807,6 @@ function renderChannels(channels) {
       if (!topCard) return;
       const logo = topCard.dataset.logo;
       const activeBtn = document.querySelector('#categoriesBar .cat-btn.active');
-      console.log('[CAT] topCard logo:', logo, 'activeBtn:', activeBtn?.textContent);
       if (!logo || !activeBtn) return;
       extractDominantColor(logo, color => {
         if (!color) return;
@@ -730,7 +815,6 @@ function renderChannels(channels) {
         const [dr, dg, db] = hslToRgb(h, Math.min(s, 70), 20);
         activeBtn.style.background = `rgb(${dr},${dg},${db})`;
         activeBtn.style.color      = `rgb(${lr},${lg},${lb})`;
-        console.log('[CAT] color applied:', `rgb(${dr},${dg},${db})`);
       });
     };
     window._catScrollHandler = updateCatColor;

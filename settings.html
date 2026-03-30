@@ -645,17 +645,17 @@
       </div>
 
       <div class="section">
-        <div class="sec-label"><span class="material-symbols-outlined dot-icon dot-url" style="font-size:10px">lens</span>Add by URL</div>
+        <div class="sec-label"><span class="material-symbols-outlined dot-icon dot-url" style="font-size:10px">lens</span><span style="color:var(--url)">Add by URL</span></div>
         <div class="sec-sub"><span class="material-symbols-outlined">info</span>Direct .m3u links only.</div>
         <div class="row">
           <input class="field" id="urlInput" type="text" placeholder="https://server.com/playlist.m3u">
-          <button class="iconbtn primary" id="btnAddUrl"><span class="material-symbols-outlined">add_link</span></button>
+          <button class="iconbtn" id="btnAddUrl" style="background:rgba(255,224,130,.15);"><span class="material-symbols-outlined" style="color:var(--url)">add_link</span></button>
         </div>
         <div class="status" id="statusUrl"></div>
       </div>
 
       <div class="section">
-        <div class="sec-label"><span class="material-symbols-outlined dot-icon dot-local" style="font-size:10px">lens</span>Upload local file</div>
+        <div class="sec-label"><span class="material-symbols-outlined dot-icon dot-local" style="font-size:10px">lens</span><span style="color:var(--local)">Upload local file</span></div>
         <div class="sec-sub"><span class="material-symbols-outlined">info</span>M3U format required.</div>
         <div class="row">
           <button class="btn-upload" onclick="document.getElementById('fileInput').click()">
@@ -668,7 +668,7 @@
       </div>
 
       <div class="section">
-        <div class="sec-label"><span class="material-symbols-outlined" style="font-size:14px">playlist_add_check</span>Saved playlists</div>
+        <div class="sec-label"><span class="material-symbols-outlined" style="font-size:14px;color:#fff">person</span><span style="color:#fff">Saved playlists</span></div>
         <ul class="list" id="playlistList"></ul>
         <div class="status" id="statusList"></div>
       </div>
@@ -981,7 +981,7 @@
     if(!items.length){list.innerHTML='<div style="padding:20px;text-align:center;color:var(--t3);font-size:.85rem"><span class="material-symbols-outlined" style="font-size:32px;display:block;margin-bottom:8px">playlist_add</span>No playlists yet.</div>';return;}
     items.forEach(it=>{
       const li=document.createElement('li');li.className='item';
-      const isXvb=it.url&&(it.url.includes('jonathansanfilippo')||it.url.includes('xvb-server'));
+      const isXvb=it.url&&(it.url.includes('jonathansanfilippo')||it.url.includes('xvb-server'))||(it.name&&it.name.toLowerCase().startsWith('xvb-'));
       const dotClass=it.type==='local'?'dot-local':isXvb?'dot-server':'dot-url';
       const typeLabel=it.type==='local'?'LOCAL':isXvb?'XVB-SERVER':'URL';
       const date=it.createdAt?new Date(it.createdAt).toLocaleDateString():'';

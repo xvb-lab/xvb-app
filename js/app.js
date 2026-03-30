@@ -1398,8 +1398,22 @@ async function fetchOnlineUsers() {
     }
   } catch {}
 }
+// Genera sessionId univoco per questa sessione browser
+const _sessionId = (() => {
+  let id = sessionStorage.getItem('xvb.sid');
+  if (!id) { id = Math.random().toString(36).slice(2) + Date.now().toString(36); sessionStorage.setItem('xvb.sid', id); }
+  return id;
+})();
+
 async function pingServer() {
-  try { await fetch(`${CONFIG.STATS_URL}/ping`, { method: 'POST', cache: 'no-store' }); } catch {}
+  try {
+    await fetch(`${CONFIG.STATS_URL}/ping`, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: _sessionId }),
+    });
+  } catch {}
 }
 function startOnlineRefresh() {
   pingServer();

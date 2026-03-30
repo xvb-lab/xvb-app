@@ -348,7 +348,7 @@ function normalizeRating(raw) {
   return { label, cls: 'badge-rating' };
 }
 
-function updateStreamMeta(ch) {
+async function updateStreamMeta(ch) {
   const el = $('heroStreamMeta');
   if (!el) return;
   el.innerHTML = '';
@@ -398,13 +398,16 @@ function updateStreamMeta(ch) {
   }
 }
 
-function updateHero(ch) {
+async function updateHero(ch) {
   if (!ch) return;
   state.activeChannel = ch;
 
-  const epg  = getCurrent(ch);
+  // Reset immediato colori — evita che rimanga il colore del canale precedente
+  resetMaterialTheme();
+
+  const epg  = await getCurrent(ch);
   window._xvbEpgCurrent = epg; // esposto per badge rating
-  const next = getNext(ch, 5);
+  const next = await getNext(ch, 5);
 
   const img = epg?.icon || ch.logo || '';
   const isEpgIcon = !!epg?.icon;
@@ -577,9 +580,9 @@ function buildCard(ch) {
 
   card.appendChild(wrap);
 
-  // Mobile: aggiungi riga dettagli stile YouTube
+  // Mobile: aggiungi riga dettagli stile YouTube (EPG caricata async dopo)
   if (isMobile) {
-    const epg = getCurrent(ch);
+    getCurrent(ch).then(epg => {
 
     // ── Thumbnail: anteprima EPG se disponibile, altrimenti logo ──
     wrap.innerHTML = '';
@@ -681,9 +684,10 @@ function buildCard(ch) {
         }
       });
     }
+    }); // end getCurrent.then
   }
 
-  card.addEventListener('click', () => {
+  card.addEventListener('click', async () => {
     document.querySelectorAll('.channel-card').forEach(c => c.classList.remove('active'));
     card.classList.add('active');
     if (isMobile) {
@@ -713,7 +717,7 @@ function buildCard(ch) {
           logoImgEl.style.display = 'none'; logoTextEl.style.display = 'flex';
         }
       }
-      const epg = getCurrent(ch);
+      const epg = await getCurrent(ch);
       const progEl2 = $('playerProgramTitle');
       if (progEl2) progEl2.textContent = epg?.title || ch.name || '';
 
@@ -977,8 +981,8 @@ function closePlayer() {
   }
 }
 
-function bindWatchNow() {
-  $('watchNowBtn')?.addEventListener('click', () => {
+async function bindWatchNow() {
+  $('watchNowBtn')?.addEventListener('click', async () => {
     if (!state.activeChannel) return;
     openPlayer();
     play(state.activeChannel);
@@ -994,7 +998,7 @@ function bindWatchNow() {
     
     updatePlayerBg(state.activeChannel);
     const ch = state.activeChannel;
-    const epg = getCurrent(ch);
+    const epg = await getCurrent(ch);
 
     // Logo nel player
     const logoImgEl  = $('playerLogoImg');
@@ -1020,7 +1024,7 @@ function bindWatchNow() {
   });
 }
 
-function bindPlayerControls() {
+async function bindPlayerControls() {
   const getVideo = () => document.getElementById('videoEl');
 
   $('playerClose')?.addEventListener('click', closePlayer);
@@ -1041,11 +1045,11 @@ function bindPlayerControls() {
   $('playerForward')?.addEventListener('click', (e) => { e.stopPropagation(); forward(10); });
 
   // ── Time display — ora corrente / fine EPG ──
-  const updateTimeDisplay = () => {
+  const updateTimeDisplay = async () => {
     const el = $('playerTimeDisplay'); if (!el) return;
     const now = new Date();
     const nowStr = fmtTime(now);
-    const epg = state.activeChannel ? getCurrent(state.activeChannel) : null;
+    const epg = state.activeChannel ? await getCurrent(state.activeChannel) : null;
     if (epg) {
       el.textContent = `${nowStr} / ${fmtTime(new Date(epg.stop))}`;
     } else {
@@ -1066,7 +1070,7 @@ function bindPlayerControls() {
   let updateSpeedBtn = () => {};
 
   // ── Logica Cambio Canale (Navigazione) ──
-  const navigateChannel = (direction) => {
+  const navigateChannel = async (direction) => {
     const allCh = state.allChannels;
     if (!allCh.length || !state.activeChannel) return;
 
@@ -1122,7 +1126,7 @@ function bindPlayerControls() {
       }
     }
 
-    const epg = getCurrent(nextCh);
+    const epg = await getCurrent(nextCh);
     const fill = $('playerProgress');
 
     if (epg) {
@@ -1459,9 +1463,9 @@ function startHeroRefresh() {
 
 /* ── Player EPG progress refresh ── */
 function startPlayerProgressRefresh() {
-  setInterval(() => {
+  setInterval(async () => {
     if (!state.playerOpen || !state.activeChannel) return;
-    const epg = getCurrent(state.activeChannel);
+    const epg = await getCurrent(state.activeChannel);
     const fill = $('playerProgress');
     if (epg) {
       if (fill) { fill.style.width = `${epg.pct}%`; fill.classList.remove('is-buffer'); }
@@ -1633,9 +1637,9 @@ async function init() {
       showError(msg);
       console.error('[XVB3] Error:', msg);
     },
-    onProgress: (pct) => {
+    onProgress: async (pct) => {
       if (!state.playerOpen || !state.activeChannel) return;
-      const epg = getCurrent(state.activeChannel);
+      const epg = await getCurrent(state.activeChannel);
       if (!epg) {
         const fill = $('playerProgress');
         if (fill) { fill.style.width = `${pct}%`; fill.classList.add('is-buffer'); }

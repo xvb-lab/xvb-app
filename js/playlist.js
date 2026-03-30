@@ -17,6 +17,7 @@ export function parseM3U(text, sourceName = 'Channels', sourceType = 'url') {
       current = {};
 
       const tvgId    = line.match(/tvg-id="([^"]*)"/i)?.[1]    || '';
+      const epgId    = line.match(/epg-id="([^"]*)"/i)?.[1]    || '';
       const tvgName  = line.match(/tvg-name="([^"]*)"/i)?.[1]  || '';
       const tvgLogo  = line.match(/tvg-logo="([^"]*)"/i)?.[1]  || '';
       const group    = line.match(/group-title="([^"]*)"/i)?.[1] || sourceName;
@@ -28,6 +29,7 @@ export function parseM3U(text, sourceName = 'Channels', sourceType = 'url') {
       current = {
         name:    tvgName || rawName || 'Channel',
         tvgId,
+        epgId,
         logo:    tvgLogo,
         group:   group.trim(),
         license,

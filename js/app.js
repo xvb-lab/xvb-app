@@ -652,8 +652,8 @@ function buildCard(ch) {
     // Views badge — a destra
     const viewsEl = document.createElement('div');
     viewsEl.className = 'card-views';
-    viewsEl.style.cssText = 'display:flex;align-items:center;gap:3px;font-size:.75rem;color:rgba(255,255,255,.4);flex-shrink:0;margin-left:auto;';
-    viewsEl.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:\'FILL\' 1,\'wght\' 400,\'GRAD\' 0,\'opsz\' 24">visibility</span><span class="card-views-count"></span>';
+    viewsEl.style.cssText = 'display:flex;align-items:center;gap:4px;font-size:.82rem;font-weight:500;color:rgba(255,255,255,.6);flex-shrink:0;margin-left:auto;';
+    viewsEl.innerHTML = '<span class="material-symbols-outlined" style="font-size:17px;font-variation-settings:\'FILL\' 1,\'wght\' 400,\'GRAD\' 0,\'opsz\' 24">visibility</span><span class="card-views-count"></span>';
 
     details.appendChild(avatar);
     details.appendChild(textDiv);

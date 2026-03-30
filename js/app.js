@@ -561,7 +561,6 @@ function buildCard(ch) {
       openPlayer();
       play(ch);
       showSpinner();
-      updatePlayerBg(ch);
       const logoImgEl  = $('playerLogoImg');
       const logoTextEl = $('playerLogoText');
       if (logoImgEl && logoTextEl) {
@@ -573,27 +572,38 @@ function buildCard(ch) {
         }
       }
       const epg = getCurrent(ch);
-      const progEl = $('playerProgramTitle');
-      if (progEl) progEl.textContent = epg?.title || ch.name || '';
-      // Applica Material You color per progress bar dinamica
+      const progEl2 = $('playerProgramTitle');
+      if (progEl2) progEl2.textContent = epg?.title || ch.name || '';
+
+      // Reset immediato colori
+      resetMaterialTheme();
+      const progressEl = $('playerProgress');
+      if (progressEl) progressEl.style.background = '';
+
+      // Aggiorna sfondo player
+      const bg = $('playerBg');
+      if (bg) bg.style.background = '#0a0a0f';
+      let logoEl = document.getElementById('playerBgLogo');
+      if (!logoEl) { logoEl = document.createElement('img'); logoEl.id = 'playerBgLogo'; bg?.appendChild(logoEl); }
+      if (ch.logo) { logoEl.src = ch.logo; logoEl.style.display = 'block'; } else { logoEl.style.display = 'none'; }
+
+      // Estrai colore per aggiornare tema e progress
+      const _url = ch.url;
       if (ch.logo) {
+        // Svuota cache per forzare ricalcolo
+        _colorCache.delete(ch.logo);
         extractDominantColor(ch.logo, color => {
+          if (state.activeChannel?.url !== _url) return;
+          console.log('[PROGRESS] color:', color, 'for', ch.name);
           if (color) {
             applyMaterialTheme(color.r, color.g, color.b);
-            // Forza colore direttamente sulla progress bar
             const pal = tonalPalette(color.r, color.g, color.b);
-            const progressEl = $('playerProgress');
-            if (progressEl) progressEl.style.background = `rgb(${pal.t80[0]},${pal.t80[1]},${pal.t80[2]})`;
-          } else {
-            resetMaterialTheme();
-            const progressEl = $('playerProgress');
-            if (progressEl) progressEl.style.background = '';
+            const pb = $('playerProgress');
+            if (pb) pb.style.background = `rgb(${pal.t80[0]},${pal.t80[1]},${pal.t80[2]})`;
+            const dr = Math.round(color.r*0.3), dg = Math.round(color.g*0.3), db = Math.round(color.b*0.3);
+            if (bg) bg.style.background = `radial-gradient(ellipse 55% 55% at 50% 50%, rgb(${dr},${dg},${db}) 0%, #0a0a0f 70%)`;
           }
         });
-      } else {
-        resetMaterialTheme();
-        const progressEl = $('playerProgress');
-        if (progressEl) progressEl.style.background = '';
       }
     } else {
       updateHero(ch);
@@ -702,35 +712,30 @@ function renderChannels(channels) {
     if (channels[0] && !isMobile) updateHero(channels[0]);
   }
 
-  // Mobile: IntersectionObserver — aggiorna colore categoria attiva
-  // in base al logo della prima card visibile
+  // Mobile: aggiorna colore tab attiva in base alla prima card visibile
   if (isMobile) {
-    if (window._catColorObserver) window._catColorObserver.disconnect();
-    window._catColorObserver = new IntersectionObserver(entries => {
-      // Trova la card più in alto che è visibile
-      const visible = entries
-        .filter(e => e.isIntersecting)
-        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-      if (!visible.length) return;
-      const topCard = visible[0].target;
+    if (window._catScrollHandler) window.removeEventListener('scroll', window._catScrollHandler, true);
+    const updateCatColor = () => {
+      const cards = Array.from(container.querySelectorAll('.channel-card'));
+      const topCard = cards.find(c => c.getBoundingClientRect().top >= 100);
+      if (!topCard) return;
       const logo = topCard.dataset.logo;
-      if (!logo) return;
+      const activeBtn = document.querySelector('#categoriesBar .cat-btn.active');
+      console.log('[CAT] topCard logo:', logo, 'activeBtn:', activeBtn?.textContent);
+      if (!logo || !activeBtn) return;
       extractDominantColor(logo, color => {
         if (!color) return;
         const [h, s] = rgbToHsl(color.r, color.g, color.b);
         const [lr, lg, lb] = hslToRgb(h, Math.min(s, 70), 70);
         const [dr, dg, db] = hslToRgb(h, Math.min(s, 70), 20);
-        const activeBtn = document.querySelector('.cat-btn.active');
-        if (activeBtn) {
-          activeBtn.style.setProperty('background', `rgb(${dr},${dg},${db})`);
-          activeBtn.style.setProperty('color', `rgb(${lr},${lg},${lb})`);
-        }
+        activeBtn.style.background = `rgb(${dr},${dg},${db})`;
+        activeBtn.style.color      = `rgb(${lr},${lg},${lb})`;
+        console.log('[CAT] color applied:', `rgb(${dr},${dg},${db})`);
       });
-    }, { threshold: 0.5 });
-
-    container.querySelectorAll('.channel-card').forEach(card => {
-      window._catColorObserver.observe(card);
-    });
+    };
+    window._catScrollHandler = updateCatColor;
+    window.addEventListener('scroll', updateCatColor, { passive: true, capture: true });
+    setTimeout(updateCatColor, 500);
   }
 }
 
@@ -757,7 +762,11 @@ function renderCategories(channels) {
     // Dot colorato come v2.3
     btn.textContent = cat;
     btn.addEventListener('click', () => {
-      bar.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+      bar.querySelectorAll('.cat-btn').forEach(b => {
+        b.classList.remove('active');
+        b.style.background = '';
+        b.style.color = '';
+      });
       btn.classList.add('active');
       renderChannels(channels.filter(ch => ch.group === cat));
     });
@@ -922,12 +931,29 @@ function bindPlayerControls() {
     if (nextIndex < 0) nextIndex = allCh.length - 1;
 
     const nextCh = allCh[nextIndex];
-    
+    state.activeChannel = nextCh;
     play(nextCh);
     showSpinner();
     
     updateHero(nextCh);
     updatePlayerBg(nextCh);
+
+    // Reset + aggiorna colore dinamico
+    resetMaterialTheme();
+    const pb = $('playerProgress');
+    if (pb) pb.style.background = '';
+    if (nextCh.logo) {
+      _colorCache.delete(nextCh.logo);
+      extractDominantColor(nextCh.logo, color => {
+        if (state.activeChannel?.url !== nextCh.url) return;
+        if (color) {
+          applyMaterialTheme(color.r, color.g, color.b);
+          const pal = tonalPalette(color.r, color.g, color.b);
+          const p = $('playerProgress');
+          if (p) p.style.background = `rgb(${pal.t80[0]},${pal.t80[1]},${pal.t80[2]})`;
+        }
+      });
+    }
 
     // Reset velocità a 1x al cambio canale
     _speedIdx = 0;

@@ -94,23 +94,26 @@
                     <div id="playerProgressBar"><div id="playerProgress"></div></div>
                 </div>
                 <div id="playerBar">
-                    <button id="playerPrevChan" class="pbar-btn">
-                        <span class="material-symbols-outlined">skip_previous</span>
-                    </button>
-                    <button id="playerPlay" class="pbar-btn-play">
-                        <span class="material-symbols-outlined" id="playerPlayIcon">pause</span>
-                    </button>
-                    <button id="playerNextChan" class="pbar-btn">
-                        <span class="material-symbols-outlined">skip_next</span>
-                    </button>
-                    <div id="playerTimeDisplay" class="pbar-time" style="margin-left:auto"></div>
-                    <button id="speedBtn" class="pbar-btn pbar-speed"><span id="speedLabel">1×</span></button>
-                    <button id="recordBtn" class="pbar-btn pbar-rec">
-                        <span id="recordIcon" class="material-symbols-outlined">radio_button_checked</span>
-                    </button>
-                    <button id="fullScreenBtn" class="pbar-btn">
-                        <span class="material-symbols-outlined">open_in_full</span>
-                    </button>
+                    <!-- Pill sinistra: prev + play + next -->
+                    <div class="yt-pill">
+                        <button id="playerPrevChan" class="pbar-btn">
+                            <span class="material-symbols-outlined">skip_previous</span>
+                        </button>
+                        <button id="playerPlay" class="pbar-btn-play">
+                            <span class="material-symbols-outlined" id="playerPlayIcon">pause</span>
+                        </button>
+                        <button id="playerNextChan" class="pbar-btn">
+                            <span class="material-symbols-outlined">skip_next</span>
+                        </button>
+                    </div>
+                    <!-- Pill destra: time + speed + fullscreen -->
+                    <div class="yt-pill" style="margin-left:auto">
+                        <div id="playerTimeDisplay" class="pbar-time"></div>
+                        <button id="speedBtn" class="pbar-btn pbar-speed"><span id="speedLabel">1×</span></button>
+                        <button id="fullScreenBtn" class="pbar-btn">
+                            <span class="material-symbols-outlined">open_in_full</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

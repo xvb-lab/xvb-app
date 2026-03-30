@@ -122,13 +122,13 @@ html, body {
   display: inline-block;
   background: var(--surface-c);
   padding: 6px 14px; border-radius: 20px;
-  font-size: .8rem; font-weight: 500;
+  font-size: .875rem; font-weight: 700;
   color: var(--on-surface-var);
   border: 1px solid var(--outline-var);
   cursor: pointer; white-space: nowrap;
   font-family: var(--font);
   -webkit-tap-highlight-color: transparent;
-  transition: background .15s;
+  transition: background .15s, color .15s;
 }
 .cat-btn.active {
   background: var(--primary-c);
@@ -309,33 +309,58 @@ main { padding-top: calc(var(--topbar-h) + 56px); padding-bottom: 32px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 #playerBottom {
-  background: linear-gradient(0deg, rgba(0,0,0,.8) 0%, transparent 100%);
-  padding: 8px 8px 12px;
+  background: linear-gradient(to top,
+    var(--player-bottom-gradient, rgba(0,0,0,.9)) 0%,
+    rgba(0,0,0,.5) 60%,
+    transparent 100%);
+  padding: 8px 8px 20px;
 }
-#playerProgressWrap { margin-bottom: 6px; }
+#playerProgressWrap { margin-bottom: 10px; padding: 0 4px; }
 #playerProgressBar {
   height: 3px; background: rgba(255,255,255,.25);
   border-radius: 2px; overflow: hidden;
 }
 #playerProgress {
-  height: 100%; background: var(--primary);
+  height: 100%; background: var(--md-primary, #d0bcff);
   border-radius: 2px; width: 0%; transition: width .25s linear;
 }
 #playerProgress.is-buffer { background: rgba(255,255,255,.5); }
-#playerBar { display: flex; align-items: center; }
-.pbar-btn, .pbar-btn-play {
+#playerBar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 0 4px;
+}
+.yt-pill {
+  display: inline-flex; align-items: center; gap: 0;
+  background: rgba(255,255,255,.10);
+  backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+  border-radius: 14px; padding: 4px 6px; min-height: 44px;
+}
+.yt-pill-play { background: rgba(255,255,255,.0); }
+.pbar-btn {
   width: 44px; height: 44px;
   display: flex; align-items: center; justify-content: center;
   background: none; border: none; cursor: pointer;
-  color: rgba(255,255,255,.9); border-radius: 50%;
+  color: var(--md-primary, #d0bcff); border-radius: 12px;
   font-family: var(--font); font-weight: 700; font-size: .82rem;
   -webkit-tap-highlight-color: transparent;
+  transition: background .14s;
 }
-.pbar-btn .material-symbols-outlined,
+.pbar-btn-play {
+  width: 89px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,.10);
+  backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+  border: none; border-radius: 999px; cursor: pointer;
+  color: var(--md-primary, #d0bcff);
+  -webkit-tap-highlight-color: transparent;
+  transition: background .14s;
+}
+.pbar-btn:active { background: rgba(255,255,255,.10); }
+.pbar-btn-play:hover, .pbar-btn-play:active { background: var(--md-primary, #d0bcff); color: #000; }
+.pbar-btn .material-symbols-outlined { font-size: 22px; }
 .pbar-btn-play .material-symbols-outlined { font-size: 22px; }
-.pbar-btn:active, .pbar-btn-play:active { background: rgba(255,255,255,.15); }
-.pbar-time { font-size: .72rem; color: rgba(255,255,255,.7); padding: 0 4px; white-space: nowrap; }
-.pbar-speed { font-size: .78rem; }
+.pbar-time { font-size: .9rem; font-weight: 500; color: rgba(255,255,255,.7); padding: 0 4px; white-space: nowrap; }
+.pbar-speed { font-size: .9rem; color: rgba(255,255,255,.9); }
 
 #recordBtn.is-recording #recordIcon { color: #f44336; }
 .rec-floating-badge {

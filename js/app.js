@@ -232,16 +232,17 @@ function updatePlayerBg(ch) {
 
   if (logoSrc) {
     extractDominantColor(logoSrc, color => {
-      const r = color?.r ?? 20, g = color?.g ?? 18, b = color?.b ?? 30;
-      const dr = Math.round(r * 0.3);
-      const dg = Math.round(g * 0.3);
-      const db = Math.round(b * 0.3);
-      // Radiale centrato solo attorno al logo, sfondo nero ai bordi
+      let dr, dg, db;
+      if (color) {
+        dr = Math.round(color.r * 0.3);
+        dg = Math.round(color.g * 0.3);
+        db = Math.round(color.b * 0.3);
+      } else {
+        // Logo bianco/neutro — usa primary container
+        dr = 45; dg = 31; db = 90;
+      }
       bg.style.background = `radial-gradient(ellipse 55% 55% at 50% 50%, rgb(${dr},${dg},${db}) 0%, #0a0a0f 70%)`;
-      document.documentElement.style.setProperty(
-        '--player-bottom-gradient',
-        `rgba(${dr},${dg},${db},0.95)`
-      );
+      document.documentElement.style.setProperty('--player-bottom-gradient', `rgba(${dr},${dg},${db},0.95)`);
     });
     bg.dataset.logo = logoSrc;
   } else {
@@ -475,6 +476,15 @@ async function updateHero(ch) {
         heroBg.style.backgroundPosition = 'center center';
         heroBg.style.backgroundRepeat   = 'no-repeat';
         heroBg.style.backgroundColor    = '#0a0a0f';
+        extractDominantColor(img, color => {
+          if (!heroBg) return;
+          if (color) {
+            heroBg.style.backgroundColor = `rgb(${Math.round(color.r*.25)},${Math.round(color.g*.25)},${Math.round(color.b*.25)})`;
+          } else {
+            // Logo bianco/neutro → primary container
+            heroBg.style.backgroundColor = 'rgb(45,31,90)';
+          }
+        });
       }
     } else {
       resetHeroBg();
@@ -565,7 +575,7 @@ function buildCard(ch) {
     img.onload = () => {
       wrap.classList.remove('skeleton');
       extractDominantColor(ch.logo, color => {
-        if (color) wrap.style.background = `rgba(${color.r},${color.g},${color.b},0.15)`;
+        wrap.style.background = color ? `rgba(${color.r},${color.g},${color.b},0.15)` : `rgba(45,31,90,0.3)`;
       }, img);
     };
     img.onerror = () => {
@@ -598,7 +608,7 @@ function buildCard(ch) {
         wrap.classList.remove('skeleton');
         if (!isEpgThumb) {
           extractDominantColor(thumbSrc, color => {
-            if (color) wrap.style.background = `rgba(${color.r},${color.g},${color.b},0.15)`;
+            wrap.style.background = color ? `rgba(${color.r},${color.g},${color.b},0.15)` : `rgba(45,31,90,0.3)`;
           });
         }
       };
@@ -724,7 +734,7 @@ function buildCard(ch) {
       // Reset immediato colori
       resetMaterialTheme();
       const progressEl = $('playerProgress');
-      if (progressEl) progressEl.style.background = '';
+      if (progressEl) { progressEl.style.background = ''; progressEl.style.removeProperty('background'); }
 
       // Sfondo player
       const bg = $('playerBg');
@@ -1091,7 +1101,7 @@ async function bindPlayerControls() {
     // Reset + aggiorna colore dinamico
     resetMaterialTheme();
     const pb = $('playerProgress');
-    if (pb) pb.style.background = '';
+    if (pb) { pb.style.background = ''; pb.style.removeProperty('background'); }
     if (nextCh.logo) {
       _colorCache.delete(nextCh.logo);
       extractDominantColor(nextCh.logo, color => {
@@ -1712,7 +1722,7 @@ async function init() {
   const firstCat = allWithFav[0]?.group || 'Other';
   renderCategories(allWithFav);
   renderChannels(allWithFav.filter(ch => ch.group === firstCat));
-  hideLoading();
+  showLoading('Loading guide…');
 
   setTimeout(() => updateCatArrows($('categoriesBar')), 200);
 
@@ -1821,8 +1831,9 @@ async function init() {
     }
   });
 
-  // EPG in background
+  // EPG in background — nasconde loading solo quando pronto
   fetchEpg().then(() => {
+    hideLoading();
     if (state.activeChannel) updateHero(state.activeChannel);
     // Mobile: re-renderizza le card con anteprime EPG ora disponibili
     if (isMobile) {

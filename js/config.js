@@ -8,7 +8,11 @@ export const CONFIG = {
   // ── M3U playlist URL ───────────────────────────
   M3U_URL: "",
 
-  EPG_URLS: [""],
+  EPG_URLS: [
+    "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-it.xml",
+    "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-plutotv-it.xml",
+    "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-samsung-it.xml",
+  ],
 
   // ── Server ─────────────────────────────────────
   STATS_URL:  "https://xvb-stats-wk.jonalinux-uk.workers.dev",

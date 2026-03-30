@@ -677,17 +677,7 @@
     <!-- EPG -->
     <div class="tab" id="tab-epg">
       <div class="panel-title">EPG Guide</div>
-      <div class="panel-sub">Download built-in guides or add your own XMLTV sources.</div>
-
-      <!-- Built-in EPG — download like server playlists -->
-      <div class="section">
-        <div class="sec-label" style="justify-content:space-between">
-          <span><span class="material-symbols-outlined dot-icon dot-server" style="font-size:10px">lens</span>Built-in EPG sources</span>
-          <button class="iconbtn" id="btnDownloadEpg" title="Open EPG repo"><span class="material-symbols-outlined">open_in_new</span></button>
-        </div>
-        <div class="sec-sub"><span class="material-symbols-outlined">verified</span>Verified guides — click to download and activate.</div>
-        <ul class="list" id="epgBuiltinList"></ul>
-      </div>
+      <div class="panel-sub">IT and UK guides are included. Add your own XMLTV source below.</div>
 
       <!-- Add custom URL -->
       <div class="section">
@@ -704,6 +694,22 @@
       <!-- Saved EPG sources (built-in downloaded + custom) -->
       <div class="section">
         <div class="sec-label"><span class="material-symbols-outlined" style="font-size:14px">check_circle</span>Saved EPG sources</div>
+        <!-- Static built-in -->
+        <ul class="list">
+          <li class="item">
+            <div class="item-left">
+              <div class="item-name"><span class="material-symbols-outlined dot-icon dot-server" style="font-size:10px">lens</span><span>EPG Italy</span></div>
+              <div class="item-meta"><span class="pill dot-server">BUILT-IN</span><span class="pill">🇮🇹 IT</span></div>
+            </div>
+          </li>
+          <li class="item">
+            <div class="item-left">
+              <div class="item-name"><span class="material-symbols-outlined dot-icon dot-server" style="font-size:10px">lens</span><span>EPG United Kingdom</span></div>
+              <div class="item-meta"><span class="pill dot-server">BUILT-IN</span><span class="pill">🇬🇧 UK</span></div>
+            </div>
+          </li>
+        </ul>
+        <!-- User custom sources -->
         <ul class="list" id="savedEpgList"></ul>
         <div class="status" id="statusEpgSaved"></div>
       </div>
@@ -862,15 +868,6 @@
   const SERVER_PLAYLISTS = [
     { name:'xvb-it', url:'https://pub-14721d1e3298489d957154039b2733fd.r2.dev/playlists/xvb-it' },
     { name:'xvb-uk', url:'https://pub-14721d1e3298489d957154039b2733fd.r2.dev/playlists/xvb-uk' },
-  ];
-
-  const BUILTIN_EPG = [
-    { label:'IT-EPG',       url:'https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-it.xml',         xmlPath:'epg/epg-it.xml',         ids:{icon:'epg-si-it',     sha:'epg-sha-it',     date:'epg-date-it',     msg:'epg-commit-msg-it'} },
-    { label:'UK-EPG',       url:'https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-uk.xml',         xmlPath:'epg/epg-uk.xml',         ids:{icon:'epg-si-uk',     sha:'epg-sha-uk',     date:'epg-date-uk',     msg:'epg-commit-msg-uk'} },
-    { label:'ES-EPG',       url:'https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-es.xml',         xmlPath:'epg/epg-es.xml',         ids:{icon:'epg-si-es',     sha:'epg-sha-es',     date:'epg-date-es',     msg:'epg-commit-msg-es'} },
-    { label:'FR-EPG',       url:'https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-fr.xml',         xmlPath:'epg/epg-fr.xml',         ids:{icon:'epg-si-fr',     sha:'epg-sha-fr',     date:'epg-date-fr',     msg:'epg-commit-msg-fr'} },
-    { label:'PlutoTV IT',   url:'https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-plutotv-it.xml', xmlPath:'epg/epg-plutotv-it.xml', ids:{icon:'epg-si-pluto',  sha:'epg-sha-pluto',  date:'epg-date-pluto',  msg:'epg-commit-msg-pluto'} },
-    { label:'Samsung TV+ IT', url:'https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-samsung-it.xml', xmlPath:'epg/epg-samsung-it.xml', ids:{icon:'epg-si-samsung',sha:'epg-sha-samsung',date:'epg-date-samsung',msg:'epg-commit-msg-samsung'} },
   ];
 
   /* ── Storage helpers (stesse chiavi v2.3) ── */
@@ -1063,61 +1060,16 @@
   function clearCustomEpg(){
     if(!confirm('Remove all saved EPG sources?'))return;
     saveEpgSaved([]);
-    renderSavedEpg();renderBuiltinEpg();updateSidebarStats();
+    renderSavedEpg();updateSidebarStats();
     broadcast();
     // Feedback visivo nel reset tab
     const tce=document.getElementById('totalCustomEpg');if(tce)tce.textContent='0';
   }
 
-  /* ── EPG status ── */
-  function renderBuiltinEpg(){
-    const ul=document.getElementById('epgBuiltinList');if(!ul)return;ul.innerHTML='';
-    BUILTIN_EPG.forEach(e=>{
-      const li=document.createElement('li');li.className='item';
-
-      const btn=document.createElement('button');btn.className='iconbtn primary';btn.title='Activate';
-      const saved=getEpgSaved();
-      const alreadySaved=saved.some(s=>s.url===e.url);
-      btn.innerHTML=alreadySaved
-        ?'<span class="material-symbols-outlined" style="color:var(--local)">check</span>'
-        :'<span class="material-symbols-outlined">cloud_download</span>';
-
-      btn.onclick=()=>{
-        const list=getEpgSaved();
-        if(list.some(s=>s.url===e.url)){
-          // Toggle off
-          saveEpgSaved(list.filter(s=>s.url!==e.url));
-          btn.innerHTML='<span class="material-symbols-outlined">cloud_download</span>';
-          renderSavedEpg();updateSidebarStats();broadcast();return;
-        }
-        list.push({url:e.url,name:e.label,type:'builtin',gz:false,savedAt:Date.now()});
-        saveEpgSaved(list);
-        btn.innerHTML='<span class="material-symbols-outlined" style="color:var(--local)">check</span>';
-        renderSavedEpg();updateSidebarStats();broadcast();
-        setStatus('statusEpgSaved',e.label+' activated.','success');
-        setTimeout(()=>setStatus('statusEpgSaved','','info'),3000);
-      };
-
-      const left=document.createElement('div');left.className='item-left';
-      left.innerHTML=`
-        <div class="item-name">
-          <span id="${e.ids.icon}" class="material-symbols-outlined dot-status dot-server">lens</span>
-          <span>${e.label}</span>
-          <span style="color:var(--t3);font-size:.75rem;margin-left:4px">SHA: <span id="${e.ids.sha}">—</span></span>
-        </div>
-        <div class="item-meta">
-          <span class="pill dot-server">XVB-SERVER</span>
-          <span class="pill"><span id="${e.ids.date}">checking…</span></span>
-          <span id="${e.ids.msg}" style="font-size:.72rem;color:var(--local)"></span>
-        </div>`;
-      li.appendChild(btn);li.appendChild(left);ul.appendChild(li);
-    });
-  }
-
   function renderSavedEpg(){
     const ul=document.getElementById('savedEpgList');if(!ul)return;
     const list=getEpgSaved();ul.innerHTML='';
-    if(!list.length){ul.innerHTML='<div style="padding:16px;text-align:center;color:var(--t3);font-size:.82rem"><span class="material-symbols-outlined" style="font-size:28px;display:block;margin-bottom:8px">calendar_today</span>No EPG sources activated yet.<br>Download built-in guides or add a custom URL above.</div>';return;}
+    if(!list.length){ul.innerHTML='<div style="padding:16px;text-align:center;color:var(--t3);font-size:.82rem"><span class="material-symbols-outlined" style="font-size:28px;display:block;margin-bottom:8px">calendar_today</span>No custom EPG sources yet.<br>Add a URL below to get started.</div>';return;}
     list.forEach((e,i)=>{
       const li=document.createElement('li');li.className='item';
       const dotClass=e.type==='builtin'?'dot-server':'dot-epg';
@@ -1127,27 +1079,10 @@
       left.innerHTML=`<div class="item-name"><span>${e.name||e.url}</span></div><div class="item-meta"><span class="pill ${dotClass}">${tag}</span>${gzBadge}${e.url?`<span class="pill" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block">${e.url}</span>`:''}</div>`;
       const del=document.createElement('button');del.className='iconbtn del-btn';del.title='Remove';
       del.innerHTML='<span class="material-symbols-outlined" style="color:var(--on-surf-v)">delete</span>';
-      del.onclick=()=>{const l=getEpgSaved();l.splice(i,1);saveEpgSaved(l);renderSavedEpg();renderBuiltinEpg();updateSidebarStats();broadcast();};
+      del.onclick=()=>{const l=getEpgSaved();l.splice(i,1);saveEpgSaved(l);renderSavedEpg();updateSidebarStats();broadcast();};
       li.appendChild(left);li.appendChild(del);ul.appendChild(li);
     });
   }
-  async function checkEpgStatus(xmlPath,label,ids){
-    const REPO='xvb-lab/xvb-epg',BRANCH='main';
-    const XML_URL=`https://raw.githubusercontent.com/${REPO}/${BRANCH}/${xmlPath}`;
-    const icon=document.getElementById(ids.icon);if(!icon)return;
-    icon.style.color='var(--url)';icon.classList.remove('epg-online');
-    const msgEl=document.getElementById(ids.msg);if(msgEl){msgEl.className='status warn';msgEl.textContent=`Checking ${label}…`;}
-    try{
-      const cr=await fetch(`https://api.github.com/repos/${REPO}/commits?path=${encodeURIComponent(xmlPath)}&sha=${BRANCH}&per_page=1`,{headers:{Accept:'application/vnd.github+json'}});
-      if(!cr.ok)throw new Error('API');
-      const cd=await cr.json();const commit=cd[0];
-      if(commit){const sha=document.getElementById(ids.sha);if(sha)sha.textContent=commit.sha.slice(0,7);const iso=commit.commit?.committer?.date||commit.commit?.author?.date;const date=document.getElementById(ids.date);if(date&&iso)date.textContent=new Date(iso).toLocaleString('en-GB');}
-      const xr=await fetch(XML_URL,{method:'HEAD',cache:'no-store'});
-      if(xr.ok){icon.style.color='#3fb950';icon.classList.add('epg-online');if(msgEl){msgEl.className='status success';msgEl.textContent=`${label} online.`;}}
-      else throw new Error('offline');
-    }catch(e){icon.style.color='#f85149';if(msgEl){msgEl.className='status error';msgEl.textContent=`${label} offline.`;}}
-  }
-  document.getElementById('btnDownloadEpg').onclick=()=>window.open('https://github.com/xvb-lab/xvb-epg','_blank');
 
   /* ── Logs ── */
   function logUI(msg,level='info'){
@@ -1283,18 +1218,10 @@
     loadDeviceInfo();
     renderServer();
     renderSaved();
-    renderBuiltinEpg();
     renderSavedEpg();
     loadProfile();
     initLogs();
     updateSidebarStats();
-    BUILTIN_EPG.forEach(e=>{
-      if(e.xmlPath) checkEpgStatus(e.xmlPath,e.label,e.ids);
-      else {
-        const icon=document.getElementById(e.ids.icon);
-        if(icon){fetch(e.url,{method:'HEAD',cache:'no-store'}).then(r=>{icon.style.color=r.ok?'#3fb950':'#f85149';if(r.ok)icon.classList.add('epg-online');}).catch(()=>{if(icon)icon.style.color='#f85149';});}
-      }
-    });
     // Apri tab da URL param (?tab=profile ecc)
     const tabParam=new URLSearchParams(window.location.search).get('tab');
     if(tabParam){const btn=document.querySelector(`[data-tab="${tabParam}"]`);if(btn)showTab(tabParam,btn);}

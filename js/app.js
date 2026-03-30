@@ -53,13 +53,22 @@ function hideStatus() {
    Estrae seed color dal logo, genera tonal palette
    e applica ruoli corretti come da guida Android TV
    ─────────────────────────────────────────────── */
+// ── CORS Proxy per estrazione colore ─────────────
+// Sostituisci con il tuo Worker URL dopo il deploy
+const CORS_PROXY = 'https://xvb-cors.tuodominio.workers.dev';
+
+function proxyUrl(src) {
+  if (!src || !CORS_PROXY) return src;
+  return `${CORS_PROXY}?url=${encodeURIComponent(src)}`;
+}
+
 const _colorCache = new Map();
 
 function extractDominantColor(src, callback, imgEl) {
   if (!src) { callback(null); return; }
   if (_colorCache.has(src)) { callback(_colorCache.get(src)); return; }
 
-  const doCanvas = (el) => {
+  const doCanvas = (el, source) => {
     try {
       const c = document.createElement('canvas');
       c.width = c.height = 32;
@@ -82,40 +91,45 @@ function extractDominantColor(src, callback, imgEl) {
       _colorCache.set(src, { r, g, b });
       callback({ r, g, b });
       return true;
-    } catch { return false; }
+    } catch(e) { return false; }
   };
 
-  // 1. Usa img element passato direttamente (già caricato, nessun CORS)
+  // 1. imgEl passato direttamente (già caricato nel DOM, nessun problema CORS)
   if (imgEl && imgEl.complete && imgEl.naturalWidth > 0) {
-    if (doCanvas(imgEl)) return;
+    if (doCanvas(imgEl, 'imgEl')) return;
   }
 
-  // 2. Cerca img già nel DOM con lo stesso src
+  // 2. img già nel DOM con lo stesso src
   const domImg = document.querySelector(`img[src="${src}"]`);
   if (domImg && domImg.complete && domImg.naturalWidth > 0) {
-    if (doCanvas(domImg)) return;
+    if (doCanvas(domImg, 'domImg')) return;
   }
 
-  // 3. Fetch via blob (bypassa CORS)
-  fetch(src, { mode: 'cors', cache: 'force-cache' })
-    .then(r => r.blob())
-    .then(blob => {
-      const url = URL.createObjectURL(blob);
-      const img = new Image();
-      img.onload = () => { doCanvas(img); URL.revokeObjectURL(url); };
-      img.onerror = () => { _colorCache.set(src, null); callback(null); };
-      img.src = url;
-    })
-    .catch(() => {
-      // 4. crossOrigin diretto
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        if (!doCanvas(img)) { _colorCache.set(src, null); callback(null); }
-      };
-      img.onerror = () => { _colorCache.set(src, null); callback(null); };
-      img.src = src;
-    });
+  // 3. crossOrigin diretto (funziona su Chrome, fallisce su Safari/Opera/Brave)
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    if (!doCanvas(img, 'crossOrigin')) {
+      // 4. Solo se crossOrigin fallisce: fetch blob
+      // Nota: su Safari il blob URL restituisce pixel uniformi, quindi
+      // usiamo solo come ultimo tentativo
+      fetch(src, { mode: 'no-cors', cache: 'force-cache' })
+        .then(r => r.blob())
+        .then(blob => {
+          const blobUrl = URL.createObjectURL(blob);
+          const img2 = new Image();
+          img2.onload = () => {
+            doCanvas(img2, 'fetch-blob');
+            URL.revokeObjectURL(blobUrl);
+          };
+          img2.onerror = () => { _colorCache.set(src, null); callback(null); };
+          img2.src = blobUrl;
+        })
+        .catch(() => { _colorCache.set(src, null); callback(null); });
+    }
+  };
+  img.onerror = () => { _colorCache.set(src, null); callback(null); };
+  img.src = src + (src.includes('?') ? '&' : '?') + '_xvb=' + Date.now();
 }
 
 // RGB → HSL

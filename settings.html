@@ -1300,7 +1300,7 @@
   document.addEventListener('DOMContentLoaded', () => {
     loadDeviceInfo();
     // Fetch server stats per About
-    fetch('https://serverpi5.ddns.net/stats/status', { cache: 'no-store' })
+    fetch('https://xvb-stats-wk.jonalinux-uk.workers.dev/status', { cache: 'no-store' })
       .then(r => r.json())
       .then(d => {
         const fmt = n => n >= 1000000 ? (n/1000000).toFixed(1).replace('.0','')+'M' : n >= 1000 ? (n/1000).toFixed(1).replace('.0','')+'K' : String(n);

@@ -835,24 +835,6 @@
         </div>
       </div>
 
-      <!-- Server Stats -->
-      <div class="section">
-        <div class="sec-label"><span class="material-symbols-outlined" style="font-size:15px">bar_chart</span>Server Stats</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-          <div class="stat-card">
-            <div class="num" id="aboutOnline" style="font-size:1.4rem;color:#4caf50">—</div>
-            <div class="lbl">Online now</div>
-          </div>
-          <div class="stat-card">
-            <div class="num" id="aboutUnique" style="font-size:1.4rem;color:#64b5f6">—</div>
-            <div class="lbl">Today's visitors</div>
-          </div>
-          <div class="stat-card">
-            <div class="num" id="aboutTotal" style="font-size:1.4rem;color:var(--primary)">—</div>
-            <div class="lbl">Total visitors</div>
-          </div>
-        </div>
-      </div>
 
       <div class="section" style="font-size:.8rem;color:var(--t2);line-height:1.7">
         <div class="sec-label">Legal & responsible use</div>
@@ -1004,7 +986,7 @@
       const typeLabel=it.type==='local'?'LOCAL':isXvb?'XVB-SERVER':'URL';
       const date=it.createdAt?new Date(it.createdAt).toLocaleDateString():'';
       const left=document.createElement('div');left.className='item-left';
-      left.innerHTML=`<div class="item-name"><span class="material-symbols-outlined dot-icon ${dotClass}">lens</span><span>${it.name||'Playlist'}</span></div><div class="item-meta"><span class="pill ${dotClass}">${it.type==='local'?'LOCAL':'URL'}</span>${date?`<span class="pill">${date}</span>`:''}</div>`;
+      left.innerHTML=`<div class="item-name"><span class="material-symbols-outlined dot-icon ${dotClass}">lens</span><span>${it.name||'Playlist'}</span></div><div class="item-meta"><span class="pill ${dotClass}">${typeLabel}</span>${date?`<span class="pill">${date}</span>`:''}</div>`;
       const actions=document.createElement('div');actions.style.cssText='display:flex;gap:6px;flex-shrink:0;';
       if(it.type==='url'){
         const ref=document.createElement('button');ref.className='iconbtn';ref.title='Refresh';
@@ -1299,18 +1281,6 @@
   /* ── Init — after DOM ready ── */
   document.addEventListener('DOMContentLoaded', () => {
     loadDeviceInfo();
-    // Fetch server stats per About
-    fetch('https://xvb-stats-wk.jonalinux-uk.workers.dev/status', { cache: 'no-store' })
-      .then(r => r.json())
-      .then(d => {
-        const fmt = n => n >= 1000000 ? (n/1000000).toFixed(1).replace('.0','')+'M' : n >= 1000 ? (n/1000).toFixed(1).replace('.0','')+'K' : String(n);
-        const o = document.getElementById('aboutOnline');
-        const u = document.getElementById('aboutUnique');
-        const t = document.getElementById('aboutTotal');
-        if (o) o.textContent = fmt(d.onlineUsers    ?? 0);
-        if (u) u.textContent = fmt(d.uniqueVisitors ?? 0);
-        if (t) t.textContent = fmt(d.totalVisitors  ?? 0);
-      }).catch(() => {});
     renderServer();
     renderSaved();
     renderBuiltinEpg();

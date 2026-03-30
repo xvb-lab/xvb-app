@@ -345,25 +345,7 @@ function updateHero(ch) {
   const next = getNext(ch, 5);
 
   const img = epg?.icon || ch.logo || '';
-  const isEpgIcon = !!epg?.icon;
-  const heroBg     = $('heroBg');
-  const heroBgBlur = $('heroBgBlur');
-
-  // Reset completo prima di ogni canale
-  function resetHeroBg() {
-    heroBg.style.backgroundImage    = 'none';
-    heroBg.style.backgroundSize     = 'cover';
-    heroBg.style.backgroundPosition = 'center top';
-    heroBg.style.backgroundRepeat   = 'no-repeat';
-    heroBg.style.backgroundColor    = '';
-    if (heroBgBlur) {
-      heroBgBlur.style.opacity         = '0';
-      heroBgBlur.style.backgroundImage = 'none';
-      heroBgBlur.style.filter          = 'blur(40px) brightness(.5) saturate(1.4)';
-      heroBgBlur.style.transform       = 'scale(1.08)';
-    }
-  }
-
+  const heroBg = $('heroBg');
   if (heroBg) {
     if (img) {
       heroBg.classList.add('skeleton');
@@ -371,51 +353,10 @@ function updateHero(ch) {
       probe.onload = () => heroBg.classList.remove('skeleton');
       probe.onerror = () => heroBg.classList.remove('skeleton');
       probe.src = img;
-
-      if (isEpgIcon) {
-        // ── Copertina EPG ──
-        resetHeroBg();
-        heroBg.style.backgroundImage = `url(${img})`;
-        const detectImg = new Image();
-        detectImg.onload = () => {
-          const isVertical = detectImg.naturalHeight > detectImg.naturalWidth;
-          if (isVertical) {
-            heroBg.style.backgroundSize     = 'contain';
-            heroBg.style.backgroundPosition = 'center center';
-            if (heroBgBlur) {
-              heroBgBlur.style.backgroundImage = `url(${img})`;
-              heroBgBlur.style.opacity         = '1';
-            }
-          } else {
-            heroBg.style.backgroundSize     = 'cover';
-            heroBg.style.backgroundPosition = 'center top';
-          }
-        };
-        detectImg.onerror = () => {
-          heroBg.style.backgroundSize     = 'cover';
-          heroBg.style.backgroundPosition = 'center top';
-        };
-        detectImg.src = img;
-
-      } else {
-        // ── Solo logo canale — sfondo col colore del logo ──
-        resetHeroBg();
-        extractDominantColor(img, color => {
-          const r = color?.r ?? 20, g = color?.g ?? 18, b = color?.b ?? 30;
-          const dr = Math.round(r * 0.3);
-          const dg = Math.round(g * 0.3);
-          const db = Math.round(b * 0.3);
-          heroBg.style.backgroundImage    = `url(${img})`;
-          heroBg.style.backgroundSize     = '300px';
-          heroBg.style.backgroundPosition = 'center center';
-          heroBg.style.backgroundRepeat   = 'no-repeat';
-          heroBg.style.backgroundColor    = `rgb(${dr},${dg},${db})`;
-        });
-      }
-
+      heroBg.style.backgroundImage = `url(${img})`;
     } else {
-      resetHeroBg();
       heroBg.classList.remove('skeleton');
+      heroBg.style.backgroundImage = 'none';
     }
   }
 
@@ -458,12 +399,8 @@ function updateHero(ch) {
   if (epg && heroFill) {
     heroFill.style.width = `${epg.pct}%`;
     heroProgressWrap?.classList.add('visible');
-    const heroTimeStart = $('heroTimeStart');
-    if (heroTimeStart) heroTimeStart.textContent = fmtTime(new Date(epg.start));
   } else {
     heroProgressWrap?.classList.remove('visible');
-    const heroTimeStart = $('heroTimeStart');
-    if (heroTimeStart) heroTimeStart.textContent = '';
   }
 
   const heroNext = $('heroNext');
@@ -493,6 +430,7 @@ function buildCard(ch) {
   const card = document.createElement('div');
   card.className = 'channel-card';
   card.dataset.url = ch.url;
+  if (ch.logo) card.dataset.logo = ch.logo;
 
   const wrap = document.createElement('div');
   wrap.className = 'card-img-wrap';
@@ -762,6 +700,37 @@ function renderChannels(channels) {
   if (firstCard) {
     firstCard.classList.add('active');
     if (channels[0] && !isMobile) updateHero(channels[0]);
+  }
+
+  // Mobile: IntersectionObserver — aggiorna colore categoria attiva
+  // in base al logo della prima card visibile
+  if (isMobile) {
+    if (window._catColorObserver) window._catColorObserver.disconnect();
+    window._catColorObserver = new IntersectionObserver(entries => {
+      // Trova la card più in alto che è visibile
+      const visible = entries
+        .filter(e => e.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+      if (!visible.length) return;
+      const topCard = visible[0].target;
+      const logo = topCard.dataset.logo;
+      if (!logo) return;
+      extractDominantColor(logo, color => {
+        if (!color) return;
+        const [h, s] = rgbToHsl(color.r, color.g, color.b);
+        const [lr, lg, lb] = hslToRgb(h, Math.min(s, 70), 70);
+        const [dr, dg, db] = hslToRgb(h, Math.min(s, 70), 20);
+        const activeBtn = document.querySelector('.cat-btn.active');
+        if (activeBtn) {
+          activeBtn.style.setProperty('background', `rgb(${dr},${dg},${db})`);
+          activeBtn.style.setProperty('color', `rgb(${lr},${lg},${lb})`);
+        }
+      });
+    }, { threshold: 0.5 });
+
+    container.querySelectorAll('.channel-card').forEach(card => {
+      window._catColorObserver.observe(card);
+    });
   }
 }
 

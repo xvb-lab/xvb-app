@@ -63,7 +63,7 @@ html, body {
 
 /* ── TOP BAR ── */
 .top-bar {
-  position: sticky; top: 0;
+  position: fixed; top: 0; left: 0; right: 0;
   height: var(--topbar-h);
   display: flex; align-items: center; gap: 8px;
   padding: 0 4px 0 12px;
@@ -107,7 +107,7 @@ html, body {
 
 /* ── CATEGORIES ── */
 .category-container {
-  position: sticky; top: var(--topbar-h); z-index: 90;
+  position: fixed; top: var(--topbar-h); left: 0; right: 0; z-index: 90;
   display: flex; gap: 8px;
   padding: 8px 12px;
   background: var(--bg);
@@ -135,16 +135,20 @@ html, body {
   color: var(--on-primary-c);
   border-color: transparent;
 }
+.cat-btn.active.dynamic {
+  background: var(--cat-active-bg, var(--primary-c));
+  color: var(--cat-active-color, var(--on-primary-c));
+  border-color: transparent;
+}
 
 /* ── MAIN ── */
-main { padding-bottom: 32px; }
+main { padding-top: calc(var(--topbar-h) + 56px); padding-bottom: 32px; }
 
 /* ── CHANNEL ROWS ── */
 #channelsArea { display: flex; flex-direction: column; }
 .channel-row { margin-bottom: 4px; }
 .channel-row-title {
-  padding: 14px 16px 4px;
-  font-size: .7rem; font-weight: 700;
+  display: none;
   letter-spacing: .1em; text-transform: uppercase;
   color: var(--outline);
 }
@@ -210,14 +214,15 @@ main { padding-bottom: 32px; }
 .card-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 
 .card-title {
-  font-size: .93rem; font-weight: 500;
+  font-size: 1rem; font-weight: 500;
   color: var(--on-surface); line-height: 1.3;
   display: -webkit-box; -webkit-line-clamp: 2;
   -webkit-box-orient: vertical; overflow: hidden;
 }
 .card-chan-name {
-  font-size: .78rem; color: var(--on-surface-var);
+  font-size: .88rem; color: var(--on-surface-var);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-weight: 500;
   /* colore override dinamico via JS */
 }
 

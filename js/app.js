@@ -83,6 +83,15 @@ function hideStatus() {
    Estrae seed color dal logo, genera tonal palette
    e applica ruoli corretti come da guida Android TV
    ─────────────────────────────────────────────── */
+// ── CORS Proxy per estrazione colore ─────────────
+// Sostituisci con il tuo Worker URL dopo il deploy
+const CORS_PROXY = 'https://xvb-cors.tuodominio.workers.dev';
+
+function proxyUrl(src) {
+  if (!src || !CORS_PROXY) return src;
+  return `${CORS_PROXY}?url=${encodeURIComponent(src)}`;
+}
+
 const _colorCache = new Map();
 
 function extractDominantColor(src, callback, imgEl) {
@@ -344,6 +353,16 @@ function getAudioHint(url) {
   return null;
 }
 
+function getResolutionHint(url) {
+  if (!url) return null;
+  const u = url.toLowerCase();
+  if (u.includes('4k') || u.includes('uhd') || u.includes('2160')) return '4K';
+  if (u.includes('2k') || u.includes('1440'))                       return '2K';
+  if (u.includes('1080') || u.includes('fhd'))                      return '1080p';
+  if (u.includes('720') || u.includes('hd'))                        return '720p';
+  if (u.includes('480') || u.includes('sd'))                        return '480p';
+  return null;
+}
 
 function makeBadge(label, cls) {
   const b = document.createElement('div');
@@ -615,9 +634,27 @@ function buildCard(ch) {
   card.appendChild(wrap);
 
 
-  // Mobile: aggiungi riga dettagli stile YouTube (EPG caricata async dopo)
+  // Mobile: aggiungi riga dettagli stile YouTube
   if (isMobile) {
-    getCurrent(ch).then(epg => {
+    // Lookup sincrono su epgData già caricato — evita 50 promise in parallelo
+    const _getEpgSync = (ch) => {
+      if (!state.epgData.size) return null;
+      const now = Date.now();
+      const keys = [];
+      if (ch.tvgId) keys.push(ch.tvgId.trim().split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, ''));
+      if (ch.name)  keys.push(ch.name.trim().toLowerCase().replace(/[^a-z0-9]/g, ''));
+      for (const key of keys) {
+        const progs = state.epgData.get(key);
+        if (!progs) continue;
+        const p = progs.find(x => x.start <= now && x.stop > now);
+        if (p) {
+          const pct = Math.min(100, Math.round(((now - p.start) / (p.stop - p.start)) * 100));
+          return { ...p, pct };
+        }
+      }
+      return null;
+    };
+    Promise.resolve(_getEpgSync(ch)).then(epg => {
 
     // ── Thumbnail: anteprima EPG se disponibile, altrimenti logo ──
     wrap.innerHTML = '';
@@ -699,26 +736,30 @@ function buildCard(ch) {
     details.appendChild(viewsEl);
     card.appendChild(details);
 
-    // Carica views async
-    fetchViews(ch.url).then(views => {
-      if (views === null || views === 0) { viewsEl.style.display = 'none'; return; }
+    // Views dalla cache — nessuna fetch extra per card
+    const cachedViews = _viewsAll.get(ch.url) || 0;
+    if (cachedViews === 0) {
+      viewsEl.style.display = 'none';
+    } else {
       const countEl = viewsEl.querySelector('.card-views-count');
-      if (countEl) countEl.textContent = views >= 1000000
-        ? (views/1000000).toFixed(1).replace('.0','') + 'M'
-        : views >= 1000
-        ? (views/1000).toFixed(1).replace('.0','') + 'K'
-        : String(views);
-    });
+      if (countEl) countEl.textContent = cachedViews >= 1000000
+        ? (cachedViews/1000000).toFixed(1).replace('.0','') + 'M'
+        : cachedViews >= 1000
+        ? (cachedViews/1000).toFixed(1).replace('.0','') + 'K'
+        : String(cachedViews);
+    }
 
-    // Colore dinamico sul nome canale
+    // Colore dinamico sul nome canale — rimandato a idle per non bloccare scroll
     if (ch.logo) {
-      extractDominantColor(ch.logo, color => {
+      const _doColor = () => extractDominantColor(ch.logo, color => {
         if (color) {
           const [h, s] = rgbToHsl(color.r, color.g, color.b);
           const [lr, lg, lb] = hslToRgb(h, Math.min(s, 60), 75);
           chanEl.style.color = `rgb(${lr},${lg},${lb})`;
         }
       });
+      if (window.requestIdleCallback) requestIdleCallback(_doColor, { timeout: 2000 });
+      else setTimeout(_doColor, 500);
     }
     }); // end getCurrent.then
   }
@@ -793,6 +834,10 @@ function buildCard(ch) {
   return card;
 }
 
+/* ── Niente wheel custom — scroll normale ── */
+function bindDragScroll(row) {}
+
+function initWheelScroll() {}
 
 /* ── Scroll → prima card visibile aggiorna hero ── */
 function bindRowScroll(row, channels) {
@@ -1487,10 +1532,14 @@ async function fetchViews(channelUrl) {
 const _viewsAll = new Map(); // url → views
 
 async function loadAllViews(channels) {
-  const results = await Promise.allSettled(
-    channels.map(ch => fetchViews(ch.url).then(v => ({ url: ch.url, views: v || 0 })))
-  );
-  results.forEach(r => { if (r.status === 'fulfilled') _viewsAll.set(r.value.url, r.value.views); });
+  const BATCH = 5;
+  for (let i = 0; i < channels.length; i += BATCH) {
+    const batch = channels.slice(i, i + BATCH);
+    const results = await Promise.allSettled(
+      batch.map(ch => fetchViews(ch.url).then(v => ({ url: ch.url, views: v || 0 })))
+    );
+    results.forEach(r => { if (r.status === 'fulfilled') _viewsAll.set(r.value.url, r.value.views); });
+  }
 }
 
 function getViewsIcon(url) {
@@ -1505,11 +1554,24 @@ function getViewsIcon(url) {
   return { icon: 'visibility', color: 'rgba(255,255,255,.6)' };
 }
 
+function startOnlineRefresh() {
+  // rimosso — solo views per canale
+}
 
 /* ── Hero refresh ── */
 function startHeroRefresh() {
+  let _lastHeroUrl = null;
+  let _lastHeroUpdate = 0;
   setInterval(() => {
-    if (state.activeChannel) updateHero(state.activeChannel);
+    if (!state.activeChannel) return;
+    if (document.visibilityState !== 'visible') return;
+    if (state.playerOpen) return;
+    const now = Date.now();
+    // Aggiorna solo se il canale è cambiato o sono passati 60s dall'ultimo update
+    if (state.activeChannel.url === _lastHeroUrl && now - _lastHeroUpdate < 60000) return;
+    _lastHeroUrl = state.activeChannel.url;
+    _lastHeroUpdate = now;
+    updateHero(state.activeChannel);
   }, 30000);
 }
 
@@ -1733,6 +1795,7 @@ async function init() {
 
   bindWatchNow();
   bindPlayerControls();
+  initWheelScroll();
 
   // Frecce categorie
   const catBar = $('categoriesBar');
@@ -1781,6 +1844,13 @@ async function init() {
     }
   });
 
+  document.addEventListener('fullscreenchange', () => {
+    const isFull = !!document.fullscreenElement;
+    const heroIcon = $('heroFullscreenBtn')?.querySelector('.material-symbols-outlined');
+    if (heroIcon) heroIcon.textContent = isFull ? 'close_fullscreen' : 'open_in_full';
+    const playerIcon = $('fullScreenBtn')?.querySelector('.ctrl-icon');
+    if (playerIcon) playerIcon.textContent = isFull ? 'close_fullscreen' : 'open_in_full';
+  });
 
   // ── Render iniziale ──
   const favCh = getFavouritesAsGroup();
@@ -1798,6 +1868,7 @@ async function init() {
   // Rende footer subito ma icone invisibili — animazione parte dopo hideLoading
   renderFooter(true);
   startPlayerProgressRefresh();
+  startOnlineRefresh();
 
   // Search mobile — input fisso nella topbar
   if (isMobile) {

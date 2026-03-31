@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/xvb2.png" alt="XVB3 — Extended Video Broadcast" width="160">
+  <img src="assets/Untitled3.png" alt="XVB3 — Extended Video Broadcast" width="">
 </p>
  
 <h1 align="center">XVB3</h1>

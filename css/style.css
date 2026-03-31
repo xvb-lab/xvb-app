@@ -4,7 +4,24 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap');
 
+@font-face {
+  font-family: 'SamsungSharpSans';
+  src: url('assets/SamsungSharpSans-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
 
+#xvbLogo {
+  font-family: 'SamsungSharpSans', var(--font-title);
+  font-size: 30px;
+  font-weight: bold;
+  color: var(--md-primary);
+  letter-spacing: -.02em;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-right: 4px;
+  text-transform: lowercase;
+}
 
 
 .material-symbols-outlined {
@@ -174,16 +191,16 @@ img { display:block; }
   display: inline-flex; align-items: center;
   padding: 2px 8px; border-radius: 4px;
   background: none;
-  border: 1.5px solid rgba(255,255,255,.25);
+  border: 1.5px solid rgba(255,255,255,.4);
   font-size: .8rem; font-weight: 700;
   letter-spacing: .06em; text-transform: uppercase;
-  color: rgba(255,255,255,.6);
+  color: rgba(255,255,255,.9);
   font-family: var(--font-title);
 }
 /* Rating age badges */
 .stream-badge.badge-rating { }
-.stream-badge.badge-meta { background: none; border-color: transparent; text-transform: lowercase; letter-spacing: 0; color: rgba(255,255,255,.5); }
-.stream-badge.badge-views { background: none; border-color: transparent; text-transform: none; letter-spacing: 0; color: rgba(255,255,255,.5); }
+.stream-badge.badge-meta { background: none; border-color: transparent; text-transform: lowercase; letter-spacing: 0; color: rgba(255,255,255,.9); }
+.stream-badge.badge-views { background: none; border-color: transparent; text-transform: none; letter-spacing: 0; color: rgba(255,255,255,.9); }
 
 /* Hero actions row */
 #heroActions {

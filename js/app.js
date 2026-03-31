@@ -394,8 +394,11 @@ async function updateStreamMeta(ch) {
 
   // Views badge
   if (ch?.url) {
-    fetchViews(ch.url).then(views => {
+    const chUrl = ch.url;
+    fetchViews(chUrl).then(views => {
       if (views === null || views === 0) return;
+      // Evita duplicati — rimuovi badge views esistenti prima di aggiungere
+      el.querySelectorAll('.badge-views').forEach(b => b.remove());
       const label = views >= 1000000
         ? (views / 1000000).toFixed(1).replace('.0', '') + 'M Views'
         : views >= 1000
@@ -405,7 +408,8 @@ async function updateStreamMeta(ch) {
       badge.style.display = 'inline-flex';
       badge.style.alignItems = 'center';
       badge.style.gap = '3px';
-      badge.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24">visibility</span> ${label}`;
+      const vi = getViewsIcon(chUrl);
+      badge.innerHTML = `<span class="material-symbols-outlined" style="font-size:22px;vertical-align:middle;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24;color:${vi.color}">${vi.icon}</span> ${label}`;
       el.appendChild(badge);
     });
   }
@@ -611,6 +615,7 @@ function buildCard(ch) {
 
   card.appendChild(wrap);
 
+
   // Mobile: aggiungi riga dettagli stile YouTube (EPG caricata async dopo)
   if (isMobile) {
     getCurrent(ch).then(epg => {
@@ -687,7 +692,8 @@ function buildCard(ch) {
     const viewsEl = document.createElement('div');
     viewsEl.className = 'card-views';
     viewsEl.style.cssText = 'display:flex;align-items:center;gap:4px;font-size:.82rem;font-weight:500;color:rgba(255,255,255,.6);flex-shrink:0;margin-left:auto;';
-    viewsEl.innerHTML = '<span class="material-symbols-outlined" style="font-size:17px;font-variation-settings:\'FILL\' 1,\'wght\' 400,\'GRAD\' 0,\'opsz\' 24">visibility</span><span class="card-views-count"></span>';
+    const vi2 = getViewsIcon(ch.url);
+      viewsEl.innerHTML = `<span class="material-symbols-outlined" style="font-size:22px;vertical-align:middle;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24;color:${vi2.color}">${vi2.icon}</span><span class="card-views-count"></span>`;
 
     details.appendChild(avatar);
     details.appendChild(textDiv);
@@ -1482,6 +1488,28 @@ async function fetchViews(channelUrl) {
   } catch { return null; }
 }
 
+// Cache globale views per percentili
+const _viewsAll = new Map(); // url → views
+
+async function loadAllViews(channels) {
+  const results = await Promise.allSettled(
+    channels.map(ch => fetchViews(ch.url).then(v => ({ url: ch.url, views: v || 0 })))
+  );
+  results.forEach(r => { if (r.status === 'fulfilled') _viewsAll.set(r.value.url, r.value.views); });
+}
+
+function getViewsIcon(url) {
+  if (!_viewsAll.size) return { icon: 'visibility', color: 'rgba(255,255,255,.6)' };
+  const views = _viewsAll.get(url) || 0;
+  if (views === 0) return { icon: 'visibility', color: 'rgba(255,255,255,.6)' };
+  const allVals = [..._viewsAll.values()].filter(v => v > 0).sort((a,b) => a - b);
+  if (!allVals.length) return { icon: 'visibility', color: 'rgba(255,255,255,.6)' };
+  const rank = allVals.filter(v => v <= views).length / allVals.length;
+  if (rank >= 0.80) return { icon: 'local_fire_department', color: '#ff6d00' };
+  if (rank >= 0.60) return { icon: 'moving', color: 'var(--md-primary)' };
+  return { icon: 'visibility', color: 'rgba(255,255,255,.6)' };
+}
+
 function startOnlineRefresh() {
   // rimosso — solo views per canale
 }
@@ -1764,6 +1792,7 @@ async function init() {
 
   startAutoRefresh();
   startHeroRefresh();
+  loadAllViews(channels);
   // Rende footer subito ma icone invisibili — animazione parte dopo hideLoading
   renderFooter(true);
   startPlayerProgressRefresh();

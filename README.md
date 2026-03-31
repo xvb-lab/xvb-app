@@ -28,3 +28,4 @@ MIT — see [LICENCE](LICENCE) for details.
 ## Social
 
 <meta name="fediverse:creator" content="@xvb@mastodon.uno">
+<a rel="me" href="https://mastodon.uno/@xvb">Mastodon</a>

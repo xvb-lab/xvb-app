@@ -11,6 +11,15 @@ import { renderQualityMenu, getCurrentQualityLabel } from './quality.js';
 
 const $ = id => document.getElementById(id);
 
+// ── Log broadcaster → settings Live Logs ─────────
+function xvbLog(msg, level = 'info') {
+  try {
+    const bc = new BroadcastChannel('xvb_logs');
+    bc.postMessage({ type: 'log', source: 'app', msg: String(msg), level });
+    bc.close();
+  } catch {}
+}
+
 // ── Orologio topbar ──
 function updateClock() {
   const el = document.getElementById('topbarClock');
@@ -1652,11 +1661,11 @@ async function init() {
       hideStatus();
       if (ch) ch._retried = false;
       $('playerOverlay')?.classList.remove('show-controls');
-      console.log('[XVB3] Playing:', ch.name);
+      xvbLog('[XVB3] Playing:', ch.name);
     },
     onStop: () => {
       hideStatus();
-      console.log('[XVB3] Stopped');
+      xvbLog('[XVB3] Stopped');
     },
     onError: msg => {
       const ch = state.activeChannel;
@@ -1672,7 +1681,7 @@ async function init() {
         if (ch) ch._retried = false;
         showError(msg);
       }
-      console.error('[XVB3] Error:', msg);
+      xvbLog('[XVB3] Error:', msg);
     },
     onProgress: async (pct) => {
       if (!state.playerOpen || !state.activeChannel) return;
@@ -1881,7 +1890,7 @@ async function init() {
       const combined2 = [...favCh2, ...channels];
       renderChannels(combined2.filter(ch => ch.group === activeCat));
     }
-  }).catch(e => console.warn('[XVB3] EPG background load failed:', e));
+  }).catch(e => xvbLog('[XVB3] EPG background load failed:', e));
 }
 
 // ════ APP FOOTER ════
@@ -1963,8 +1972,6 @@ function renderFooter(noAnimate = false) {
     track.appendChild(a);
   });
   // Copyright
-  const cr = $('appCopyright');
-  if (cr) cr.textContent = `© ${new Date().getFullYear()} Jonathan Sanfilippo`;
   setTimeout(() => {
     track.scrollLeft = 0;
     updateFooterArrows();

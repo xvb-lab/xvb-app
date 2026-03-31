@@ -621,7 +621,6 @@
     <button class="nav-btn active" data-tab="playlists" onclick="showTab('playlists',this)"><span class="material-symbols-outlined">playlist_play</span>Playlists</button>
     <button class="nav-btn" data-tab="epg" onclick="showTab('epg',this)"><span class="material-symbols-outlined">calendar_today</span>EPG Guide</button>
     <button class="nav-btn" data-tab="apps" onclick="showTab('apps',this)"><span class="material-symbols-outlined">apps</span>Apps</button>
-    <button class="nav-btn" data-tab="logs" onclick="showTab('logs',this)"><span class="material-symbols-outlined">terminal</span>Live Logs</button>
     <div class="nav-sep"></div>
     <button class="nav-btn" data-tab="profile" onclick="showTab('profile',this)"><span class="material-symbols-outlined">account_circle</span>Profile</button>
     <button class="nav-btn" data-tab="reset" onclick="showTab('reset',this)"><span class="material-symbols-outlined">delete_sweep</span>Reset</button>
@@ -751,22 +750,6 @@
           <button class="btn-text danger" onclick="resetFooterApps()"><span class="material-symbols-outlined">restart_alt</span>Reset to defaults</button>
         </div>
         <ul class="list" id="missingDefaultsList" style="margin-top:8px;display:none"></ul>
-      </div>
-    </div>
-
-    <!-- LOGS -->
-    <div class="tab" id="tab-logs">
-      <div class="panel-title">Live Logs</div>
-      <div class="panel-sub">Real-time logs via BroadcastChannel.</div>
-      <div class="section">
-        <div class="log-head">
-          <div class="sec-sub" style="margin:0"><span class="material-symbols-outlined">settings_input_antenna</span>Listening on <span class="accent" id="logChannelName">xvb_logs</span></div>
-          <div class="log-actions">
-            <button class="iconbtn" id="btnLogClear"><span class="material-symbols-outlined">delete</span></button>
-            <button class="iconbtn" id="btnLogCopy"><span class="material-symbols-outlined">content_copy</span></button>
-          </div>
-        </div>
-        <div class="log-console" id="logConsole"></div>
       </div>
     </div>
 
@@ -961,7 +944,7 @@
     const items=pl2_listIndex();
     let ch=0;
     items.forEach(it=>{const d=_readItem(it.id);const t=d?.m3uText||d?.content||'';const m=t.match(/#EXTINF/gi);if(m)ch+=m.length;});
-    const epg=getEpgSaved().length; // solo quante salvate, 0 di base
+    const epg = getEpgSaved().length + 2; // +2 per IT e UK built-in
     return{pl:items.length,ch,epg};
   }
   function calcStorage(){
@@ -1259,23 +1242,6 @@
     });
   }
 
-  /* ── Logs ── */
-  function logUI(msg,level='info'){
-    const el=document.getElementById('logConsole');if(!el)return;
-    const d=new Date();const t=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
-    const line=document.createElement('div');line.className='log-line '+(level||'info');
-    line.innerHTML=`<span class="t">[${t}]</span>${String(msg||'')}`;
-    el.appendChild(line);el.scrollTop=el.scrollHeight;
-    if(el.children.length>300)el.removeChild(el.children[0]);
-  }
-  function initLogs(){
-    const chName=document.getElementById('logChannelName');if(chName)chName.textContent='xvb_logs';
-    if('BroadcastChannel' in window){const bc=new BroadcastChannel('xvb_logs');bc.onmessage=(ev)=>{const d=ev?.data;if(!d||d.type!=='log'||d.source==='playlist-manager')return;logUI((d.source?`[${d.source}] `:'')+d.msg,d.level||'info');};logUI('Log channel ready.','ok');}
-    else{logUI('BroadcastChannel not supported.','warn');}
-    document.getElementById('btnLogClear').onclick=()=>{const el=document.getElementById('logConsole');if(el)el.innerHTML='';logUI('Logs cleared.','info');};
-    document.getElementById('btnLogCopy').onclick=async()=>{const el=document.getElementById('logConsole');try{await navigator.clipboard.writeText(el?.innerText||'');logUI('Copied.','ok');}catch{logUI('Clipboard denied.','warn');}};
-  }
-
   /* ── Profile ── */
   function loadProfile(){
     const a=localStorage.getItem(AVATAR_KEY);
@@ -1402,7 +1368,6 @@
     renderSavedEpg();
     renderAppsList();
     loadProfile();
-    initLogs();
     updateSidebarStats();
     // Apri tab da URL param (?tab=profile ecc)
     const tabParam=new URLSearchParams(window.location.search).get('tab');

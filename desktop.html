@@ -9,13 +9,29 @@
    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" />
 </head>
+<style>@font-face {
+  font-family: 'SamsungSharpSans';
+  src: url('assets/SamsungSharpSans-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
+</style>
 <body>
 
 <!-- ═══════════════════════════════════════
      TOPBAR
      ═══════════════════════════════════════ -->
 <div id="topbar">
-  <button id="avatarBtn" class="topbar-icon-btn" title="Profile">
+  <span style="font-family: 'SamsungSharpSans'!important;
+  font-size: 30px!important;
+  font-weight: bold;
+  color: var(--md-primary);
+  letter-spacing: -.02em;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-right: 4px;
+  text-transform: lowercase; ">xvb</span>
+   <button id="avatarBtn" class="topbar-icon-btn" title="Profile">
     <span class="material-symbols-outlined">account_circle</span>
   </button>
 
@@ -118,7 +134,7 @@
     <span class="material-symbols-outlined">chevron_right</span>
   </button>
 </div>
-
+<div id="appCopyright"></div>
 
 <!-- ═══════════════════════════════════════
      PLAYER OVERLAY

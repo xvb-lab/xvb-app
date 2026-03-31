@@ -272,6 +272,12 @@ export async function fetchEpg() {
   }
 }
 
+// ── Demo channel detection ────────────────────────
+function isDemoChannel(ch) {
+  const id = (ch?.tvgId || ch?.epgId || '');
+  return id.endsWith('.demo');
+}
+
 // ── Query ─────────────────────────────────────────
 export async function getCurrent(ch) {
   if (!ch) return null;
@@ -291,6 +297,14 @@ export async function getCurrent(ch) {
   for (const key of epgKeys(ch)) {
     const progs = state.epgData.get(key);
     if (!progs) continue;
+
+    // Canale demo: date statiche → restituisce sempre il primo programma
+    if (isDemoChannel(ch)) {
+      const p = progs[0];
+      if (!p) continue;
+      return { ...p, pct: 0, startDate: new Date(p.start), stopDate: new Date(p.stop) };
+    }
+
     const p = progs.find(x => x.start <= now && x.stop > now);
     if (p) {
       const pct = Math.min(100, Math.round(((now - p.start) / (p.stop - p.start)) * 100));
@@ -315,6 +329,8 @@ export async function getNext(ch, limit = 5) {
   for (const key of epgKeys(ch)) {
     const progs = state.epgData.get(key);
     if (!progs) continue;
+    // Canale demo: nessun "prossimo" da mostrare
+    if (isDemoChannel(ch)) return [];
     const list = progs.filter(x => x.start > now).slice(0, limit);
     if (list.length) return list;
   }

@@ -1390,6 +1390,12 @@
 
   /* ── Init — after DOM ready ── */
   document.addEventListener('DOMContentLoaded', () => {
+    // Nascondi tab Apps su mobile
+    const isMobile = /Mobi|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
+    if (isMobile) {
+      document.querySelector('[data-tab="apps"]')?.style.setProperty('display', 'none');
+      document.getElementById('tab-apps')?.style.setProperty('display', 'none');
+    }
     loadDeviceInfo();
     renderServer();
     renderSaved();

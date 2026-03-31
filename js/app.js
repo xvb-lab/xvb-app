@@ -1619,8 +1619,9 @@ function showLoading(msg = 'Loading…') {
     el.id = 'xvb3Loading';
     el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0f1014;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;font-family:"Google Sans","Roboto",sans-serif;transition:opacity .4s ease;';
     el.innerHTML = `
-      <img src="assets/icon.jpg" alt="XVB" style="width:72px;height:72px;border-radius:20px;box-shadow:0 4px 24px rgba(0,0,0,.5)">
-      <div id="xvb3LoadingMsg" style="font-size:.9rem;color:rgba(255,255,255,.5)">${msg}</div>
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 50%,rgba(208,188,255,.08) 0%,transparent 70%);pointer-events:none"></div>
+      <div style="position:relative;font-family:'Google Sans',sans-serif;font-size:48px;font-weight:900;color:#d0bcff;letter-spacing:-.02em;line-height:1">xvb<span style="font-size:24px;font-weight:400;opacity:.5;vertical-align:super;margin-left:2px">3</span></div>
+      <div id="xvb3LoadingMsg" style="position:relative;font-size:.9rem;color:rgba(255,255,255,.5)">${msg}</div>
       <div style="width:180px;height:2px;background:rgba(255,255,255,.1);border-radius:999px;overflow:hidden">
         <div id="xvb3LoadingBar" style="height:100%;background:#d0bcff;border-radius:999px;width:30%;animation:loadSlide 1.2s ease-in-out infinite alternate"></div>
       </div>`;

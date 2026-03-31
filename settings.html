@@ -595,8 +595,16 @@
   <!-- ── Sidebar ── -->
   <nav class="sidebar">
     <div class="sidebar-head">
-      <a href="index.html" class="back-btn"><span class="material-symbols-outlined">arrow_back</span></a>
+      <a href="xvb.html" class="back-btn"><span class="material-symbols-outlined">arrow_back</span></a>
       <span class="sidebar-title">Settings</span>
+      <div style="margin-left:auto;display:flex;gap:4px">
+        <a href="index.html" title="Home" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;color:var(--primary);text-decoration:none;transition:background .15s" onmouseover="this.style.background='var(--chip-active)'" onmouseout="this.style.background='transparent'">
+          <span class="material-symbols-outlined" style="font-size:20px">home</span>
+        </a>
+        <a href="doc.html" title="Documentation" style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;color:var(--primary);text-decoration:none;transition:background .15s" onmouseover="this.style.background='var(--chip-active)'" onmouseout="this.style.background='transparent'">
+          <span class="material-symbols-outlined" style="font-size:20px">menu_book</span>
+        </a>
+      </div>
     </div>
 
     <!-- User card -->
@@ -847,7 +855,7 @@
       <div class="panel-title">About</div>
       <div class="panel-sub">XVB3 — Your personal TV experience.</div>
       <div class="section">
-        <img src="assets/icon.jpg" alt="XVB" style="width:72px;height:72px;border-radius:20px;display:block;margin-bottom:18px;box-shadow:0 4px 24px rgba(0,0,0,.4);">
+        <img src="assets/xvb.png" alt="" style="width:220px;height:auto;border-radius:20px;display:block;margin:0 auto 24px;box-shadow:0 4px 24px rgba(0,0,0,.4);">
         <div style="font-size:1.4rem;font-weight:700;color:var(--on-surf);margin-bottom:2px;letter-spacing:-.01em">XVB3</div>
         <div style="font-size:.85rem;color:var(--t2);margin-bottom:20px">Version 3.0</div>
         <div style="border-radius:16px;overflow:hidden;border:1px solid var(--line)">
@@ -865,6 +873,20 @@
             <a rel="me" href="https://mastodon.uno/@xvb" target="_blank" style="color:var(--primary);font-weight:600;text-decoration:none;display:flex;align-items:center;gap:6px">
               <span class="material-symbols-outlined" style="font-size:16px">open_in_new</span>
               @xvb@mastodon.uno
+            </a>
+          </div>
+          <div class="info-row">
+            <span class="lbl">Homepage</span>
+            <a href="index.html" style="color:var(--primary);font-weight:600;text-decoration:none;display:flex;align-items:center;gap:6px">
+              <span class="material-symbols-outlined" style="font-size:16px">home</span>
+              xvb-app.pages.dev
+            </a>
+          </div>
+          <div class="info-row">
+            <span class="lbl">Documentation</span>
+            <a href="doc.html" style="color:var(--primary);font-weight:600;text-decoration:none;display:flex;align-items:center;gap:6px">
+              <span class="material-symbols-outlined" style="font-size:16px">menu_book</span>
+              User guide
             </a>
           </div>
         </div>

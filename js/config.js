@@ -23,7 +23,7 @@ export const CONFIG = {
 
   // ── Player ─────────────────────────────────────
   PLAYER: {
-    TIMEOUT_MS:         12000,  // timeout prima di mostrare errore
+    TIMEOUT_MS:         20000,  // timeout prima di mostrare errore
     LIVE_BUFFER_WINDOW: 20,     // secondi finestra buffer live
     PROGRESS_TICK_MS:   250,    // frequenza aggiornamento progress
   },

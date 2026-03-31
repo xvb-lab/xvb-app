@@ -26,13 +26,13 @@ function fmtTime(d) {
 }
 
 /* ── Player status pill ── */
-function showSpinner() {
+function showSpinner(txt = '') {
   const pill = $('playerStatusPill');
   const ring = $('playerSpinnerInner');
   const msg  = $('playerStatusMsg');
   if (!pill) return;
   if (ring) ring.style.display = 'block';
-  if (msg)  msg.textContent = '';
+  if (msg)  msg.textContent = txt;
   pill.hidden = false;
 }
 function showError(txt) {
@@ -43,6 +43,9 @@ function showError(txt) {
   if (ring) ring.style.display = 'none';
   if (msg)  msg.innerHTML = `<span class="material-symbols-outlined" style="font-size:28px;vertical-align:middle;margin-right:5px;">warning</span>${txt || 'Stream non disponibile'}`;
   pill.hidden = false;
+  try { const a = new Audio('assets/error.mp3'); a.volume = 0.5; a.play().catch(() => {}); } catch {}
+  // Mostra overlay controlli così l'errore è leggibile
+  $('playerOverlay')?.classList.add('show-controls');
 }
 function hideStatus() {
   const pill = $('playerStatusPill');
@@ -412,6 +415,11 @@ async function updateHero(ch) {
 
   const img = epg?.icon || ch.logo || '';
   const isEpgIcon = !!epg?.icon;
+  const heroEl = document.getElementById('hero');
+  if (heroEl) {
+    heroEl.classList.toggle('has-epg-image', isEpgIcon);
+    heroEl.classList.toggle('has-logo', !isEpgIcon);
+  }
   const heroBg     = $('heroBg');
   const heroBgBlur = $('heroBgBlur');
 
@@ -461,7 +469,11 @@ async function updateHero(ch) {
           } else {
             heroBg.style.backgroundSize     = 'cover';
             heroBg.style.backgroundPosition = 'center top';
-            if (heroBgBlur) heroBgBlur.style.opacity = '0';
+            // Blur attivo anche per orizzontali come fill di sfondo
+            if (heroBgBlur) {
+              heroBgBlur.style.backgroundImage = `url(${img})`;
+              heroBgBlur.style.opacity         = '1';
+            }
           }
         };
         detectImg.onerror = () => {
@@ -493,7 +505,7 @@ async function updateHero(ch) {
   }
 
   const heroLogo = $('heroLogo');
-  const heroLogoText = $('heroLogoText'); // Recuperiamo il nuovo elemento
+  const heroLogoText = $('heroLogoText');
 
   if (heroLogo && heroLogoText) {
     if (ch.logo) {
@@ -510,7 +522,7 @@ async function updateHero(ch) {
       heroLogoText.style.display = 'none';
     } else {
       heroLogo.style.display = 'none';
-      heroLogoText.textContent = ch.name || 'Canale Sconosciuto';
+      heroLogoText.textContent = ch.name || '';
       heroLogoText.style.display = 'block';
     }
   }
@@ -1512,15 +1524,15 @@ function loadProfile() {
       avatarBtn.onclick = () => { window.location.href = 'settings.html?tab=profile'; };
     } else {
       const img = avatar
-        ? `<img src="${avatar}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0">`
-        : `<span class="material-symbols-outlined" style="font-size:20px">account_circle</span>`;
+        ? `<img src="${avatar}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+        : `<span class="material-symbols-outlined" style="font-size:26px">account_circle</span>`;
       const nameHtml = name
-        ? `<span style="font-size:13px;font-weight:600;color:rgba(255,255,255,.85);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>`
+        ? `<span style="font-size:14px;font-weight:600;color:var(--md-primary);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>`
         : '';
       avatarBtn.innerHTML = img + nameHtml;
       avatarBtn.style.cssText = name
         ? 'display:flex;align-items:center;gap:7px;padding:0 12px 0 6px;border-radius:999px;width:auto;'
-        : '';
+        : 'display:flex;align-items:center;justify-content:center;border-radius:50%;width:40px;height:40px;';
       avatarBtn.onclick = () => { window.location.href = 'settings.html?tab=profile'; };
     }
   }
@@ -1630,7 +1642,7 @@ async function init() {
 
   localStorage.setItem('xvb3.firstRun', 'done');
   loadProfile();
-  showLoading('Loading guide…');
+  showLoading('');
 
   initPlayer({
     video:      $('videoEl'),
@@ -1638,6 +1650,8 @@ async function init() {
     shield:     $('iframeShield'),
     onPlay: ch => {
       hideStatus();
+      if (ch) ch._retried = false;
+      $('playerOverlay')?.classList.remove('show-controls');
       console.log('[XVB3] Playing:', ch.name);
     },
     onStop: () => {
@@ -1645,7 +1659,19 @@ async function init() {
       console.log('[XVB3] Stopped');
     },
     onError: msg => {
-      showError(msg);
+      const ch = state.activeChannel;
+      if (ch && !ch._retried) {
+        ch._retried = true;
+        showSpinner('Retrying…');
+        setTimeout(() => {
+          if (state.activeChannel?.url === ch.url) {
+            play(ch).catch(() => showError(msg));
+          }
+        }, 2000);
+      } else {
+        if (ch) ch._retried = false;
+        showError(msg);
+      }
       console.error('[XVB3] Error:', msg);
     },
     onProgress: async (pct) => {
@@ -1723,12 +1749,14 @@ async function init() {
   const firstCat = allWithFav[0]?.group || 'Other';
   renderCategories(allWithFav);
   renderChannels(allWithFav.filter(ch => ch.group === firstCat));
-  showLoading('Loading guide…');
+  showLoading('');
 
   setTimeout(() => updateCatArrows($('categoriesBar')), 200);
 
   startAutoRefresh();
   startHeroRefresh();
+  // Rende footer subito ma icone invisibili — animazione parte dopo hideLoading
+  renderFooter(true);
   startPlayerProgressRefresh();
   startOnlineRefresh();
 
@@ -1835,6 +1863,16 @@ async function init() {
   // EPG in background — nasconde loading solo quando pronto
   fetchEpg().then(() => {
     hideLoading();
+    setTimeout(() => {
+      document.querySelectorAll('.app-icon').forEach((el, i) => {
+        el.style.animationDelay = `${i * 60}ms`;
+        el.classList.add('animate-in');
+        el.addEventListener('animationend', () => {
+          el.classList.remove('animate-in');
+          el.style.animationDelay = '';
+        }, { once: true });
+      });
+    }, 50);
     if (state.activeChannel) updateHero(state.activeChannel);
     // Mobile: re-renderizza le card con anteprime EPG ora disponibili
     if (isMobile) {
@@ -1844,6 +1882,94 @@ async function init() {
       renderChannels(combined2.filter(ch => ch.group === activeCat));
     }
   }).catch(e => console.warn('[XVB3] EPG background load failed:', e));
+}
+
+// ════ APP FOOTER ════
+const DEFAULT_APPS = [
+  { name: 'Netflix',          url: 'https://netflix.com',          img: 'https://www.google.com/s2/favicons?sz=128&domain=netflix.com' },
+  { name: 'YouTube',          url: 'https://youtube.com',          img: 'https://www.google.com/s2/favicons?sz=128&domain=youtube.com' },
+  { name: 'Prime Video',      url: 'https://primevideo.com',       img: 'https://www.google.com/s2/favicons?sz=128&domain=primevideo.com' },
+  { name: 'Disney+',          url: 'https://disneyplus.com',       img: 'https://www.google.com/s2/favicons?sz=128&domain=disneyplus.com' },
+  { name: 'Apple TV+',        url: 'https://tv.apple.com',         img: 'https://www.google.com/s2/favicons?sz=128&domain=tv.apple.com' },
+  { name: 'Max',              url: 'https://max.com',              img: 'https://www.google.com/s2/favicons?sz=128&domain=max.com' },
+  { name: 'Spotify',          url: 'https://open.spotify.com',     img: 'https://upload.wikimedia.org/wikipedia/commons/7/75/Spotify_icon.png' },
+  { name: 'RaiPlay',          url: 'https://raiplay.it',           img: 'https://www.google.com/s2/favicons?sz=128&domain=raiplay.it' },
+  { name: 'Mediaset Infinity',url: 'https://mediasetinfinity.it',  img: 'https://www.google.com/s2/favicons?sz=128&domain=mediasetinfinity.it' },
+  { name: 'DAZN',             url: 'https://dazn.com',             img: 'https://www.google.com/s2/favicons?sz=128&domain=dazn.com' },
+  { name: 'Now TV',           url: 'https://nowtv.it',             img: 'https://www.google.com/s2/favicons?sz=128&domain=nowtv.it' },
+  { name: 'YouTube Music',    url: 'https://music.youtube.com',    img: 'https://www.google.com/s2/favicons?sz=128&domain=music.youtube.com' },
+];
+
+const APPS_KEY = 'xvb3.footer_apps';
+
+function getFooterApps() {
+  try {
+    const raw = localStorage.getItem(APPS_KEY);
+    const arr = raw ? JSON.parse(raw) : null;
+    return Array.isArray(arr) && arr.length ? arr : DEFAULT_APPS;
+  } catch { return DEFAULT_APPS; }
+}
+
+function updateFooterArrows() {
+  const track = $('appFooterTrack');
+  const prev  = $('appFooterPrev');
+  const next  = $('appFooterNext');
+  if (!track || !prev || !next) return;
+  const hasOverflow = track.scrollWidth > track.clientWidth + 4;
+  prev.classList.toggle('visible', hasOverflow && track.scrollLeft > 4);
+  next.classList.toggle('visible', hasOverflow && track.scrollLeft < track.scrollWidth - track.clientWidth - 4);
+}
+
+function scrollFooter(dir) {
+  const track = $('appFooterTrack');
+  if (!track) return;
+  track.scrollBy({ left: dir * 300, behavior: 'smooth' });
+  setTimeout(updateFooterArrows, 350);
+}
+
+function renderFooter(noAnimate = false) {
+  const track = $('appFooterTrack');
+  if (!track) return;
+  const apps = getFooterApps();
+  track.innerHTML = '';
+  apps.forEach((app, i) => {
+    const a = document.createElement('a');
+    a.className = 'app-icon';
+    a.href = app.url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.title = app.name;
+    // animation handled after hideLoading
+    if (app.img) {
+      const img = document.createElement('img');
+      img.src = app.img;
+      img.alt = app.name;
+      img.onerror = () => {
+        img.remove();
+        a.innerHTML = `<span class="app-icon-fallback">${app.name}</span>`;
+      };
+      img.onload = () => {
+        extractDominantColor(app.img, color => {
+          if (color) {
+            a.style.setProperty('--app-icon-color', `rgb(${color.r},${color.g},${color.b})`);
+          }
+        }, img);
+      };
+      a.appendChild(img);
+    } else {
+      a.innerHTML = `<span class="app-icon-fallback">${app.name}</span>`;
+    }
+    // stagger handled after hideLoading
+    track.appendChild(a);
+  });
+  // Copyright
+  const cr = $('appCopyright');
+  if (cr) cr.textContent = `© ${new Date().getFullYear()} Jonathan Sanfilippo`;
+  setTimeout(() => {
+    track.scrollLeft = 0;
+    updateFooterArrows();
+  }, 50);
+  track.addEventListener('scroll', updateFooterArrows, { passive: true });
 }
 
 document.addEventListener('DOMContentLoaded', init);

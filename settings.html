@@ -620,6 +620,7 @@
 
     <button class="nav-btn active" data-tab="playlists" onclick="showTab('playlists',this)"><span class="material-symbols-outlined">playlist_play</span>Playlists</button>
     <button class="nav-btn" data-tab="epg" onclick="showTab('epg',this)"><span class="material-symbols-outlined">calendar_today</span>EPG Guide</button>
+    <button class="nav-btn" data-tab="apps" onclick="showTab('apps',this)"><span class="material-symbols-outlined">apps</span>Apps</button>
     <button class="nav-btn" data-tab="logs" onclick="showTab('logs',this)"><span class="material-symbols-outlined">terminal</span>Live Logs</button>
     <div class="nav-sep"></div>
     <button class="nav-btn" data-tab="profile" onclick="showTab('profile',this)"><span class="material-symbols-outlined">account_circle</span>Profile</button>
@@ -712,6 +713,44 @@
         <!-- User custom sources -->
         <ul class="list" id="savedEpgList"></ul>
         <div class="status" id="statusEpgSaved"></div>
+      </div>
+    </div>
+
+    <!-- APPS -->
+    <div class="tab" id="tab-apps">
+      <div class="panel-title">Apps</div>
+      <div class="panel-sub">Shortcuts shown in the footer bar. Click an icon to change its image.</div>
+
+      <!-- Add custom app -->
+      <div class="section">
+        <div class="sec-label"><span class="material-symbols-outlined dot-icon" style="font-size:10px;color:var(--url)">lens</span><span style="color:var(--url)">Add app</span></div>
+        <div class="sec-sub"><span class="material-symbols-outlined">info</span>Add a custom shortcut. Tap the icon to upload a custom image.</div>
+
+        <!-- Icon picker -->
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
+          <div id="newAppIconWrap" onclick="document.getElementById('newAppIconInput').click()" style="width:56px;height:56px;border-radius:50%;background:var(--surface2);border:2px dashed rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;flex-shrink:0;transition:border-color .2s" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='rgba(255,255,255,.2)'">
+            <img id="newAppIconPreview" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:50%">
+            <span class="material-symbols-outlined" id="newAppIconPlaceholder" style="font-size:24px;color:var(--on-surf-d)">add_photo_alternate</span>
+          </div>
+          <input type="file" id="newAppIconInput" accept="image/*" style="display:none">
+          <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+            <input class="field" id="appNameInput" type="text" placeholder="App name (e.g. Netflix)">
+            <input class="field" id="appUrlInput" type="text" placeholder="https://netflix.com">
+          </div>
+          <button class="iconbtn primary" onclick="addFooterApp()" style="align-self:center"><span class="material-symbols-outlined">add</span></button>
+        </div>
+        <div class="status" id="statusApp"></div>
+      </div>
+
+      <!-- Saved apps -->
+      <div class="section">
+        <div class="sec-label"><span class="material-symbols-outlined" style="font-size:14px">apps</span>Saved apps</div>
+        <ul class="list" id="appsList"></ul>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-text" onclick="showMissingDefaults()"><span class="material-symbols-outlined">add_circle</span>Restore removed apps</button>
+          <button class="btn-text danger" onclick="resetFooterApps()"><span class="material-symbols-outlined">restart_alt</span>Reset to defaults</button>
+        </div>
+        <ul class="list" id="missingDefaultsList" style="margin-top:8px;display:none"></ul>
       </div>
     </div>
 
@@ -1026,6 +1065,142 @@
   /* ── Clear all ── */
 
   /* ── Custom EPG ── */
+  /* ── Footer Apps ── */
+  const APPS_KEY = 'xvb3.footer_apps';
+  const DEFAULT_APPS = [
+    { name: 'Netflix',          url: 'https://netflix.com',          img: 'https://www.google.com/s2/favicons?sz=128&domain=netflix.com' },
+    { name: 'YouTube',          url: 'https://youtube.com',          img: 'https://www.google.com/s2/favicons?sz=128&domain=youtube.com' },
+    { name: 'Prime Video',      url: 'https://primevideo.com',       img: 'https://www.google.com/s2/favicons?sz=128&domain=primevideo.com' },
+    { name: 'Disney+',          url: 'https://disneyplus.com',       img: 'https://www.google.com/s2/favicons?sz=128&domain=disneyplus.com' },
+    { name: 'Apple TV+',        url: 'https://tv.apple.com',         img: 'https://www.google.com/s2/favicons?sz=128&domain=tv.apple.com' },
+    { name: 'Max',              url: 'https://max.com',              img: 'https://www.google.com/s2/favicons?sz=128&domain=max.com' },
+    { name: 'Spotify',          url: 'https://open.spotify.com',     img: 'https://upload.wikimedia.org/wikipedia/commons/7/75/Spotify_icon.png' },
+    { name: 'RaiPlay',          url: 'https://raiplay.it',           img: 'https://www.google.com/s2/favicons?sz=128&domain=raiplay.it' },
+    { name: 'Mediaset Infinity',url: 'https://mediasetinfinity.it',  img: 'https://www.google.com/s2/favicons?sz=128&domain=mediasetinfinity.it' },
+    { name: 'DAZN',             url: 'https://dazn.com',             img: 'https://www.google.com/s2/favicons?sz=128&domain=dazn.com' },
+    { name: 'Now TV',           url: 'https://nowtv.it',             img: 'https://www.google.com/s2/favicons?sz=128&domain=nowtv.it' },
+    { name: 'YouTube Music',    url: 'https://music.youtube.com',    img: 'https://www.google.com/s2/favicons?sz=128&domain=music.youtube.com' },
+  ];
+
+  let _newAppIconData = ''; // base64 dell'icona caricata per la nuova app
+
+  function getFooterApps() {
+    try { const r = localStorage.getItem(APPS_KEY); const a = r ? JSON.parse(r) : null; return Array.isArray(a) && a.length ? a : [...DEFAULT_APPS]; } catch { return [...DEFAULT_APPS]; }
+  }
+  function saveFooterApps(arr) { localStorage.setItem(APPS_KEY, JSON.stringify(arr)); }
+
+  function renderAppsList() {
+    const ul = document.getElementById('appsList'); if (!ul) return;
+    const apps = getFooterApps(); ul.innerHTML = '';
+    if (!apps.length) { ul.innerHTML = '<div style="padding:16px;text-align:center;color:var(--t3);font-size:.82rem">No apps.</div>'; return; }
+    apps.forEach((app, i) => {
+      const li = document.createElement('li'); li.className = 'item';
+
+      // Icon picker inline
+      const iconWrap = document.createElement('div');
+      iconWrap.style.cssText = 'width:40px;height:40px;border-radius:50%;overflow:hidden;flex-shrink:0;cursor:pointer;margin-right:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;';
+      iconWrap.title = 'Change icon';
+      const iconImg = document.createElement('img');
+      iconImg.src = app.img || '';
+      iconImg.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+      iconImg.onerror = () => { iconImg.style.display='none'; iconWrap.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px;color:var(--on-surf-d)">apps</span>`; };
+      iconWrap.appendChild(iconImg);
+      const fileIn = document.createElement('input');
+      fileIn.type='file'; fileIn.accept='image/*'; fileIn.style.display='none';
+      fileIn.onchange = e => {
+        const file = e.target.files?.[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const src = ev.target.result;
+          const apps2 = getFooterApps();
+          apps2[i].img = src;
+          saveFooterApps(apps2);
+          renderAppsList();
+          broadcast();
+        };
+        reader.readAsDataURL(file);
+      };
+      iconWrap.onclick = () => fileIn.click();
+      iconWrap.appendChild(fileIn);
+
+      const left = document.createElement('div'); left.className = 'item-left';
+      left.style.flexDirection = 'row'; left.style.alignItems = 'center';
+      left.innerHTML = `<div style="display:flex;flex-direction:column;gap:2px"><div class="item-name"><span>${app.name}</span></div><div class="item-meta"><span class="pill" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block">${app.url}</span></div></div>`;
+      left.prepend(iconWrap);
+
+      const del = document.createElement('button'); del.className = 'iconbtn del-btn'; del.title = 'Remove';
+      del.innerHTML = '<span class="material-symbols-outlined" style="color:var(--on-surf-v)">delete</span>';
+      del.onclick = () => { const a = getFooterApps(); a.splice(i,1); saveFooterApps(a); renderAppsList(); broadcast(); };
+      li.appendChild(left); li.appendChild(del); ul.appendChild(li);
+    });
+  }
+
+  function showMissingDefaults() {
+    const ul = document.getElementById('missingDefaultsList'); if (!ul) return;
+    const current = getFooterApps();
+    const missing = DEFAULT_APPS.filter(d => !current.some(c => c.url === d.url));
+    ul.innerHTML = '';
+    if (!missing.length) { ul.innerHTML = '<div style="padding:12px;color:var(--t3);font-size:.82rem">All default apps are already added.</div>'; ul.style.display='block'; return; }
+    missing.forEach(app => {
+      const li = document.createElement('li'); li.className = 'item';
+      const left = document.createElement('div'); left.className = 'item-left';
+      left.innerHTML = `<div class="item-name"><img src="${app.img}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;margin-right:8px"><span>${app.name}</span></div>`;
+      const btn = document.createElement('button'); btn.className = 'iconbtn primary'; btn.title = 'Restore';
+      btn.innerHTML = '<span class="material-symbols-outlined">add</span>';
+      btn.onclick = () => { const a = getFooterApps(); a.push({...app}); saveFooterApps(a); renderAppsList(); showMissingDefaults(); broadcast(); };
+      li.appendChild(left); li.appendChild(btn); ul.appendChild(li);
+    });
+    ul.style.display = 'block';
+  }
+
+  function addFooterApp() {
+    const name = document.getElementById('appNameInput')?.value.trim();
+    const url  = document.getElementById('appUrlInput')?.value.trim();
+    if (!name || !url || !url.startsWith('http')) { setStatus('statusApp','Invalid name or URL','error'); return; }
+    let img = _newAppIconData;
+    if (!img) {
+      try { const domain = new URL(url).hostname; img = `https://www.google.com/s2/favicons?sz=128&domain=${domain}`; } catch {}
+    }
+    const apps = getFooterApps();
+    apps.push({ name, url, img });
+    saveFooterApps(apps);
+    renderAppsList();
+    broadcast();
+    document.getElementById('appNameInput').value = '';
+    document.getElementById('appUrlInput').value = '';
+    // Reset icon preview
+    _newAppIconData = '';
+    const preview = document.getElementById('newAppIconPreview');
+    const placeholder = document.getElementById('newAppIconPlaceholder');
+    if (preview) { preview.src=''; preview.style.display='none'; }
+    if (placeholder) placeholder.style.display='';
+    setStatus('statusApp', `${name} added.`, 'success');
+    setTimeout(() => setStatus('statusApp','','info'), 3000);
+  }
+
+  function resetFooterApps() {
+    if (!confirm('Reset apps to defaults?')) return;
+    localStorage.removeItem(APPS_KEY);
+    renderAppsList();
+    const ml = document.getElementById('missingDefaultsList');
+    if (ml) ml.style.display = 'none';
+    broadcast();
+  }
+
+  // Icon upload per nuova app
+  document.getElementById('newAppIconInput')?.addEventListener('change', e => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      _newAppIconData = ev.target.result;
+      const preview = document.getElementById('newAppIconPreview');
+      const placeholder = document.getElementById('newAppIconPlaceholder');
+      if (preview) { preview.src = _newAppIconData; preview.style.display = 'block'; }
+      if (placeholder) placeholder.style.display = 'none';
+    };
+    reader.readAsDataURL(file); e.target.value = '';
+  });
+
   function addCustomEpg(){
     const urlInput=document.getElementById('epgUrlInput');const nameInput=document.getElementById('epgNameInput');
     const url=(urlInput?.value||'').trim();const name=(nameInput?.value||'').trim();
@@ -1219,6 +1394,7 @@
     renderServer();
     renderSaved();
     renderSavedEpg();
+    renderAppsList();
     loadProfile();
     initLogs();
     updateSidebarStats();

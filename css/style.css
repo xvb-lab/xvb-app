@@ -102,19 +102,19 @@ img { display:block; }
 
     /* Ombra di profondità */
     radial-gradient(ellipse 45% 55% at 0% 75%, rgba(15,16,20,.45) 0%, transparent 65%),
-    
-    /* Vignettatura superiore */
-    linear-gradient(to bottom,
-      rgba(15,16,20,.85) 0%,
-      transparent        8%),
-      
-    /* Vignettatura inferiore */
+
+    /* Vignettatura inferiore — più alta a sinistra (testo), più bassa a destra (card) */
     linear-gradient(to top,
       rgba(15,16,20,1)   0%,
       rgba(15,16,20,.95) 18%,
-      rgba(15,16,20,.7)  38%,
-      rgba(15,16,20,.15) 55%,
-      transparent        65%);
+      rgba(15,16,20,.5)  38%,
+      rgba(15,16,20,.05) 55%,
+      transparent        60%),
+
+    /* Extra scuro solo lato sinistro in basso */
+    linear-gradient(to top right,
+      rgba(15,16,20,.9) 0%,
+      transparent       30%);
 }
 
 #heroContent {
@@ -303,7 +303,7 @@ img { display:block; }
   flex-direction: column;
   justify-content: flex-end;
   gap: 24px;
-  padding-bottom: 48px;
+  padding-bottom: 16px;
 }
 #channelsArea::-webkit-scrollbar { display:none; }
 
@@ -425,7 +425,7 @@ img { display:block; }
 
 /* ── Card active border — colore dal logo via --md-primary ── */
 .channel-card {
-  flex: 0 0 calc((100% - 32px) / 3);
+  flex: 0 0 calc((100% - 48px) / 4);
   scroll-snap-align: start;
   outline: none;
   border-radius: 14px;
@@ -470,30 +470,41 @@ img { display:block; }
   align-items: center;
   gap: 12px;
   padding: 14px 24px;
-  background: linear-gradient(to bottom, rgba(15,16,20,.8) 0%, transparent 100%);
+  background: var(--md-on-primary);
 }
 
 .topbar-icon-btn {
   flex-shrink: 0;
   width: 36px; height: 36px;
   border-radius: 50%;
-  background: rgba(255,255,255,.08);
-  color: rgba(255,255,255,.8);
+  background: transparent;
+  color: var(--md-primary);
   display: flex; align-items: center; justify-content: center;
   text-decoration: none;
   transition: background .18s, color .18s;
   border: none; cursor: pointer;
   font-size: 17px;
 }
-.topbar-icon-btn:hover { background: rgba(255,255,255,.18); color: #fff; }
+.topbar-icon-btn:hover { background: var(--chip-active); color: var(--md-primary); }
 .topbar-icon-btn .material-symbols-outlined { font-size: 20px; }
+
+#catPrev, #catNext {
+  background: var(--chip-active) !important;
+}
+
+#avatarBtn {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0;
+}
 
 /* Search — solo icona a destra, si espande al click */
 #searchWrap {
   display: flex;
   align-items: center;
   gap: 0;
-  background: rgba(255,255,255,.08);
+  background: transparent;
   border-radius: 999px;
   padding: 7px 10px;
   width: 36px;
@@ -556,25 +567,25 @@ img { display:block; }
   flex-shrink: 0;
   padding: 6px 18px;
   border-radius: 999px;
-  background: rgba(255,255,255,.08);
-  color:rgba(255,255,255,.6);
+  background: transparent;
+  color: var(--md-primary);
   font-family: var(--font-title);
   font-size: 14px;
   font-weight: 500;
   transition: all .2s cubic-bezier(0.2, 0, 0, 1);
   white-space: nowrap;
-  border: 1.5px solid rgba(255,255,255,.15);
+  border: none;
 }
 .cat-btn:hover { 
- background: rgba(255,255,255,.25);
- color: #e6f2ff;
+ background: var(--chip-active);
+ color: var(--md-primary);
 }
 
 
 .cat-btn.active {
- background: rgba(255,255,255,.08);
- border: 1.5px solid rgba(255,255,255,.15);
- color: #ffffffdb;
+ background: var(--md-primary);
+ border: none;
+ color: #000;
  font-weight: 500;
 }
 
@@ -938,4 +949,125 @@ img { display:block; }
   background-color: rgba(255, 255, 255, 0.7) !important; /* Bianco neutro/semi-trasparente */
   box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
   transition: width 0.25s linear; /* Movimento fluido per il buffer */
+}
+/* ════ APP FOOTER ════ */
+:root {
+  --footer-h: 130px;
+  --topbar-h: 64px;
+}
+
+/* Riduci altezza app per fare spazio al footer */
+#app {
+  height: calc(100vh - var(--footer-h)) !important;
+}
+#hero {
+  height: calc(100vh - var(--footer-h)) !important;
+}
+#heroContent {
+  padding-top: calc(var(--topbar-h) + 20px) !important;
+}
+#heroBg,
+#heroBgBlur,
+#heroGradient {
+  top: var(--topbar-h) !important;
+  bottom: var(--footer-h) !important;
+}
+
+#appFooter {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: var(--footer-h);
+  z-index: 50;
+  background: rgb(15,16,20);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  overflow: visible;
+}
+
+.footer-arrow {
+  flex-shrink: 0;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.08);
+  border: 1.5px solid rgba(255,255,255,.12);
+  color: rgba(255,255,255,.6);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background .2s, color .2s;
+  opacity: 0; pointer-events: none;
+}
+.footer-arrow.visible { opacity: 1; pointer-events: auto; }
+.footer-arrow:hover { background: rgba(255,255,255,.18); color: #fff; }
+.footer-arrow .material-symbols-outlined { font-size: 22px; }
+
+#appFooterTrack {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  overflow: visible;
+  padding: 30px 0;
+  flex: 1;
+  max-width: calc(100vw - 120px);
+}
+
+@keyframes appIconIn {
+  from { opacity: 0; transform: translateY(20px) scale(.85); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.app-icon {
+  flex-shrink: 0;
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+  background: #1a1a2e;
+  display: flex; align-items: center; justify-content: center;
+  text-decoration: none;
+  transition: transform .2s cubic-bezier(0.2,0,0,1), box-shadow .2s;
+}
+.app-icon:hover {
+  transform: scale(1.25) translateY(-6px);
+  box-shadow: 0 10px 30px rgba(0,0,0,.6);
+}
+.app-icon:focus {
+  outline: none;
+  transform: scale(1.25) translateY(-6px);
+}
+.app-icon img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.app-icon-fallback {
+  font-size: .65rem; font-weight: 700;
+  color: rgba(255,255,255,.7);
+  text-align: center; padding: 4px;
+  font-family: var(--font-title);
+}
+.app-icon.animate-in {
+  animation: appIconIn .45s cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+
+
+
+#appCopyright {
+  position: fixed;
+  bottom: 2px;
+  left: 0; right: 0;
+  text-align: center;
+  font-size: .75rem;
+  font-weight: 500;
+  color: rgba(255,255,255,.2);
+  font-family: var(--font-title);
+  letter-spacing: .04em;
+  z-index: 51;
+  pointer-events: none;
+  padding: 0;
 }

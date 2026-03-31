@@ -244,7 +244,9 @@ export async function fetchEpg() {
   // De-duplica rispetto a CONFIG.EPG_URLS
   const configUrls = CONFIG.EPG_URLS || [];
   const extraUrls = savedUrls.filter(u => !configUrls.includes(u));
-  const allUrls = [...configUrls, ...extraUrls];
+  const demoDismissed = localStorage.getItem(CONFIG.DEMO_DISMISSED_KEY) === '1';
+  const demoEpg = (!demoDismissed && CONFIG.DEMO_EPG_URL) ? [CONFIG.DEMO_EPG_URL] : [];
+  const allUrls = [...configUrls, ...extraUrls, ...demoEpg].filter(Boolean);
   if (!allUrls.length) return;
 
   try {

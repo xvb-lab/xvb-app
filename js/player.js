@@ -116,7 +116,6 @@ export async function play(ch) {
 
   const url    = String(ch.url);
   const name   = String(ch.name   || '');
-  const tvgId  = String(ch.tvgId  || '');
   const lic    = ch['license-details'] || ch.license || '';
   const isDRM  = !!lic;
   const isIframe = CONFIG.IFRAME_PATTERNS.some(p => url.includes(p));

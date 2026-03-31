@@ -11,6 +11,24 @@ import { renderQualityMenu, getCurrentQualityLabel } from './quality.js';
 
 const $ = id => document.getElementById(id);
 
+// ── Migration / force-reset ───────────────────────
+// Incrementa STORAGE_VERSION per forzare un reset su tutti gli utenti
+(function migrateStorage() {
+  const STORAGE_VERSION = '1';
+  const VERSION_KEY = 'xvb3.storage_version';
+  if (localStorage.getItem(VERSION_KEY) === STORAGE_VERSION) return;
+  // Reset completo
+  const keysToRemove = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && (k.startsWith('xvb') || k.startsWith('dvb'))) keysToRemove.push(k);
+  }
+  keysToRemove.forEach(k => localStorage.removeItem(k));
+  localStorage.setItem(VERSION_KEY, STORAGE_VERSION);
+  console.log('[XVB3] Storage migrated to version', STORAGE_VERSION);
+})();
+
+
 // ── Log broadcaster → settings Live Logs ─────────
 function xvbLog(msg, level = 'info') {
   try {
@@ -65,15 +83,6 @@ function hideStatus() {
    Estrae seed color dal logo, genera tonal palette
    e applica ruoli corretti come da guida Android TV
    ─────────────────────────────────────────────── */
-// ── CORS Proxy per estrazione colore ─────────────
-// Sostituisci con il tuo Worker URL dopo il deploy
-const CORS_PROXY = 'https://xvb-cors.tuodominio.workers.dev';
-
-function proxyUrl(src) {
-  if (!src || !CORS_PROXY) return src;
-  return `${CORS_PROXY}?url=${encodeURIComponent(src)}`;
-}
-
 const _colorCache = new Map();
 
 function extractDominantColor(src, callback, imgEl) {
@@ -335,16 +344,6 @@ function getAudioHint(url) {
   return null;
 }
 
-function getResolutionHint(url) {
-  if (!url) return null;
-  const u = url.toLowerCase();
-  if (u.includes('4k') || u.includes('uhd') || u.includes('2160')) return '4K';
-  if (u.includes('2k') || u.includes('1440'))                       return '2K';
-  if (u.includes('1080') || u.includes('fhd'))                      return '1080p';
-  if (u.includes('720') || u.includes('hd'))                        return '720p';
-  if (u.includes('480') || u.includes('sd'))                        return '480p';
-  return null;
-}
 
 function makeBadge(label, cls) {
   const b = document.createElement('div');
@@ -794,10 +793,6 @@ function buildCard(ch) {
   return card;
 }
 
-/* ── Niente wheel custom — scroll normale ── */
-function bindDragScroll(row) {}
-
-function initWheelScroll() {}
 
 /* ── Scroll → prima card visibile aggiorna hero ── */
 function bindRowScroll(row, channels) {
@@ -1510,9 +1505,6 @@ function getViewsIcon(url) {
   return { icon: 'visibility', color: 'rgba(255,255,255,.6)' };
 }
 
-function startOnlineRefresh() {
-  // rimosso — solo views per canale
-}
 
 /* ── Hero refresh ── */
 function startHeroRefresh() {
@@ -1655,6 +1647,23 @@ async function init() {
 
   showLoading('Loading channels…');
 
+  // ── Demo playlist built-in ──
+  if (!localStorage.getItem(CONFIG.DEMO_DISMISSED_KEY) && CONFIG.DEMO_M3U_URL) {
+    try {
+      const idx = JSON.parse(localStorage.getItem('xvb.playlists.index.v2') || '[]');
+      if (!idx.some(p => p.url === CONFIG.DEMO_M3U_URL)) {
+        const r = await fetch(CONFIG.DEMO_M3U_URL);
+        if (r.ok) {
+          const text = await r.text();
+          const id = 'demo-builtin';
+          localStorage.setItem('xvb.playlists.item.v2.' + id, JSON.stringify({ id, name: 'XVB Demo', url: CONFIG.DEMO_M3U_URL, m3uText: text, type: 'url', createdAt: 0 }));
+          idx.unshift({ id, name: 'XVB Demo', url: CONFIG.DEMO_M3U_URL, type: 'url', createdAt: 0 });
+          localStorage.setItem('xvb.playlists.index.v2', JSON.stringify(idx));
+        }
+      }
+    } catch {}
+  }
+
   // ── Carica playlist ──
   const channels = await loadPlaylist();
 
@@ -1724,7 +1733,6 @@ async function init() {
 
   bindWatchNow();
   bindPlayerControls();
-  initWheelScroll();
 
   // Frecce categorie
   const catBar = $('categoriesBar');
@@ -1773,13 +1781,6 @@ async function init() {
     }
   });
 
-  document.addEventListener('fullscreenchange', () => {
-    const isFull = !!document.fullscreenElement;
-    const heroIcon = $('heroFullscreenBtn')?.querySelector('.material-symbols-outlined');
-    if (heroIcon) heroIcon.textContent = isFull ? 'close_fullscreen' : 'open_in_full';
-    const playerIcon = $('fullScreenBtn')?.querySelector('.ctrl-icon');
-    if (playerIcon) playerIcon.textContent = isFull ? 'close_fullscreen' : 'open_in_full';
-  });
 
   // ── Render iniziale ──
   const favCh = getFavouritesAsGroup();
@@ -1797,7 +1798,6 @@ async function init() {
   // Rende footer subito ma icone invisibili — animazione parte dopo hideLoading
   renderFooter(true);
   startPlayerProgressRefresh();
-  startOnlineRefresh();
 
   // Search mobile — input fisso nella topbar
   if (isMobile) {

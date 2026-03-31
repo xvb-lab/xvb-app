@@ -872,7 +872,7 @@
             <span class="lbl">Mastodon</span>
             <a rel="me" href="https://mastodon.uno/@xvb" target="_blank" style="color:var(--primary);font-weight:600;text-decoration:none;display:flex;align-items:center;gap:6px">
               <span class="material-symbols-outlined" style="font-size:16px">open_in_new</span>
-              @xvb@mastodon.uno
+              @<span class="__cf_email__" data-cfemail="fc848a9ebc919d8f8893989392d2899293">[email&#160;protected]</span>
             </a>
           </div>
           <div class="info-row">
@@ -914,7 +914,8 @@
   const CHANNEL_CACHE_KEY        = 'dvb-m^7Y!zR4*P8&kQ3@h';
   const AVATAR_KEY  = 'xvb3.avatar';
   const NAME_KEY    = 'xvb3.username';
-  const CUSTOM_EPG_KEY = 'xvb3.custom_epg';
+
+  const CONFIG_DEMO_M3U_URL = 'https://pub-14721d1e3298489d957154039b2733fd.r2.dev/playlists/demo.m3u';
 
   const SERVER_PLAYLISTS = [
     { name:'xvb-it', url:'https://pub-14721d1e3298489d957154039b2733fd.r2.dev/playlists/xvb-it' },
@@ -943,18 +944,12 @@
   function pl2_addUrl(url,name){url=(url||'').trim();if(!url.startsWith('http'))return{ok:false,msg:'Invalid URL'};const idx=_getIndex();if(idx.some(x=>x&&x.type==='url'&&x.url===url))return{ok:false,msg:'Already saved'};const id=_makeId(),n=name||_guessName(url);idx.push({id,type:'url',name:n,url,createdAt:Date.now()});_setIndex(idx);_writeItem(id,{id,type:'url',name:n,url});return{ok:true,id};}
   function pl2_addLocal(name,m3uText){if(!m3uText)return{ok:false};const id=_makeId(),idx=_getIndex();idx.push({id,type:'local',name:name||'local.m3u',createdAt:Date.now()});_setIndex(idx);_writeItem(id,{id,type:'local',name:name||'local.m3u',m3uText});return{ok:true,id};}
   function pl2_remove(id){_setIndex(_getIndex().filter(x=>x&&x.id!==id));localStorage.removeItem(_itemKey(id));}
-  function pl2_clearAll(){_getIndex().forEach(x=>x&&x.id&&localStorage.removeItem(_itemKey(x.id)));localStorage.removeItem(PLAYLIST_INDEX_KEY_V2);localStorage.removeItem(PLAYLIST_MIGRATED_FLAG_V2);localStorage.removeItem(LOCAL_STORAGE_PLAYLISTS_KEY);localStorage.removeItem(CHANNEL_CACHE_KEY);}
+  function pl2_clearAll(){_getIndex().forEach(x=>x&&x.id&&localStorage.removeItem(_itemKey(x.id)));localStorage.removeItem(PLAYLIST_INDEX_KEY_V2);localStorage.removeItem(PLAYLIST_MIGRATED_FLAG_V2);localStorage.removeItem(LOCAL_STORAGE_PLAYLISTS_KEY);localStorage.removeItem(CHANNEL_CACHE_KEY);localStorage.removeItem(DEMO_DISMISSED_KEY);}
 
   /* ── EPG Storage ── */
   const EPG_SAVED_KEY = 'xvb3.epg_saved'; // { url, name, type:'builtin'|'custom', gz:bool, savedAt }
   function getEpgSaved(){try{const r=localStorage.getItem(EPG_SAVED_KEY);const a=r?JSON.parse(r):[];return Array.isArray(a)?a:[];}catch{return[];}}
   function saveEpgSaved(arr){localStorage.setItem(EPG_SAVED_KEY,JSON.stringify(arr||[]));}
-  function getCustomEpg(){return getEpgSaved().filter(e=>e.type==='custom');}
-  function saveCustomEpg(arr){
-    // Mantieni i built-in, sostituisci i custom
-    const saved=getEpgSaved().filter(e=>e.type==='builtin');
-    saveEpgSaved([...saved,...arr]);
-  }
 
   /* ── Broadcast ── */
   const broadcast=()=>{try{const bc=new BroadcastChannel('xvb_playlists_v2');bc.postMessage({type:'changed',t:Date.now()});bc.close();}catch{}};
@@ -1021,6 +1016,9 @@
     });
   }
 
+  const DEMO_M3U_URL = 'https://pub-14721d1e3298489d957154039b2733fd.r2.dev/playlists/demo.m3u';
+  const isDemoPlaylist = it => it.url === DEMO_M3U_URL || (it.name && it.name.toLowerCase().includes('demo'));
+
   /* ── Render saved playlists ── */
   function renderSaved(){
     const list=document.getElementById('playlistList');if(!list)return;
@@ -1029,26 +1027,33 @@
     if(!items.length){list.innerHTML='<div style="padding:20px;text-align:center;color:var(--t3);font-size:.85rem"><span class="material-symbols-outlined" style="font-size:32px;display:block;margin-bottom:8px">playlist_add</span>No playlists yet.</div>';return;}
     items.forEach(it=>{
       const li=document.createElement('li');li.className='item';
-      const isXvb=it.url&&(it.url.includes('jonathansanfilippo')||it.url.includes('xvb-server'))||(it.name&&it.name.toLowerCase().startsWith('xvb-'));
-      const dotClass=it.type==='local'?'dot-local':isXvb?'dot-server':'dot-url';
-      const typeLabel=it.type==='local'?'LOCAL':isXvb?'XVB-SERVER':'URL';
+      const isDemo=isDemoPlaylist(it);
+      const isXvb=!isDemo&&(it.url&&(it.url.includes('jonathansanfilippo')||it.url.includes('xvb-server'))||(it.name&&it.name.toLowerCase().startsWith('xvb-')));
+      const dotClass=it.type==='local'?'dot-local':isDemo?'dot-server':isXvb?'dot-server':'dot-url';
+      const typeLabel=it.type==='local'?'LOCAL':isDemo?'DEMO':isXvb?'XVB-SERVER':'URL';
       const date=it.createdAt?new Date(it.createdAt).toLocaleDateString():'';
       const left=document.createElement('div');left.className='item-left';
       left.innerHTML=`<div class="item-name"><span class="material-symbols-outlined dot-icon ${dotClass}">lens</span><span>${it.name||'Playlist'}</span></div><div class="item-meta"><span class="pill ${dotClass}">${typeLabel}</span>${date?`<span class="pill">${date}</span>`:''}</div>`;
       const actions=document.createElement('div');actions.style.cssText='display:flex;gap:6px;flex-shrink:0;';
-      if(it.type==='url'){
+      if(it.type==='url'&&!isDemo){
         const ref=document.createElement('button');ref.className='iconbtn';ref.title='Refresh';
         ref.innerHTML='<span class="material-symbols-outlined" style="color:var(--primary)">refresh</span>';
         ref.onclick=async()=>{ref.innerHTML='<span class="material-symbols-outlined" style="animation:spin .8s linear infinite">progress_activity</span>';try{const r=await fetch(it.url,{cache:'no-store'});const text=await r.text();const item=_readItem(it.id);if(item){item.m3uText=text;_writeItem(it.id,item);}broadcast();setStatus('statusList','Refreshed.','success');updateSidebarStats();}catch{setStatus('statusList','Refresh failed.','error');}ref.innerHTML='<span class="material-symbols-outlined" style="color:var(--primary)">refresh</span>';};
         actions.appendChild(ref);
       }
-      const dl=document.createElement('button');dl.className='iconbtn';dl.title='Download .m3u';
-      dl.innerHTML='<span class="material-symbols-outlined" style="color:var(--local)">download</span>';
-      dl.onclick=()=>{const item=_readItem(it.id);const text=item?.m3uText||item?.content||'';if(!text){setStatus('statusList','No content. Refresh first.','warn');return;}const blob=new Blob([text],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(it.name||'playlist').replace(/[^a-z0-9_\-\.]/gi,'_')+'.m3u';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);};
-      actions.appendChild(dl);
+      if(!isDemo){
+        const dl=document.createElement('button');dl.className='iconbtn';dl.title='Download .m3u';
+        dl.innerHTML='<span class="material-symbols-outlined" style="color:var(--local)">download</span>';
+        dl.onclick=()=>{const item=_readItem(it.id);const text=item?.m3uText||item?.content||'';if(!text){setStatus('statusList','No content. Refresh first.','warn');return;}const blob=new Blob([text],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(it.name||'playlist').replace(/[^a-z0-9_\-\.]/gi,'_')+'.m3u';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);};
+        actions.appendChild(dl);
+      }
       const del=document.createElement('button');del.className='iconbtn del-btn';del.title='Delete';
       del.innerHTML='<span class="material-symbols-outlined" style="color:var(--on-surf-v)">delete</span>';
-      del.onclick=()=>{if(!confirm(`Delete "${it.name}"?`))return;pl2_remove(it.id);broadcast();renderSaved();updateSidebarStats();};
+      del.onclick=()=>{
+        if(!confirm(`Delete "${it.name}"?`))return;
+        if(isDemo) localStorage.setItem(DEMO_DISMISSED_KEY,'1');
+        pl2_remove(it.id);broadcast();renderSaved();updateSidebarStats();
+      };
       actions.appendChild(del);
       li.appendChild(left);li.appendChild(actions);list.appendChild(li);
     });
@@ -1313,11 +1318,33 @@
     setTimeout(()=>setStatus('statusProfile','','info'),3000);
     try{const bc=new BroadcastChannel('xvb_profile');bc.postMessage({type:'profile_updated'});bc.close();}catch{}
   }
+  const DEMO_DISMISSED_KEY = 'xvb3.demo_dismissed';
+
+  function updateDemoPanel(){
+    const dismissed = localStorage.getItem(DEMO_DISMISSED_KEY) === '1';
+    const row = document.getElementById('demoStatusRow');
+    const btn = document.getElementById('btnRemoveDemo');
+    if(row){
+      row.innerHTML = dismissed
+        ? `<span class="material-symbols-outlined" style="font-size:16px;color:var(--local)">check_circle</span><span style="color:var(--local)">Demo playlist is hidden. It will return only after a full reset.</span>`
+        : `<span class="material-symbols-outlined" style="font-size:16px;color:var(--on-surf-d)">radio_button_unchecked</span><span>Demo playlist is currently visible.</span>`;
+    }
+    if(btn) btn.disabled = dismissed;
+  }
+
+  function removeDemoPlaylist(){
+    localStorage.setItem(DEMO_DISMISSED_KEY,'1');
+    updateDemoPanel();
+    setStatus('statusDemo','Demo playlist hidden. Reload the app to apply.','success');
+    broadcast();
+  }
+
   function resetOnboarding(){
     if(!confirm('Reset onboarding? This will also clear your profile name and avatar.'))return;
     localStorage.removeItem('xvb3.firstRun');
     localStorage.removeItem(AVATAR_KEY);
     localStorage.removeItem(NAME_KEY);
+    localStorage.removeItem(DEMO_DISMISSED_KEY);
     // Reset UI
     [document.getElementById('settingsAvatarImg'),document.getElementById('sidebarAvatarImg')].forEach(img=>{if(img){img.src='';img.style.display='none';}});
     document.querySelectorAll('.sidebar-avatar .material-symbols-outlined, #tab-profile .avatar-icon').forEach(ic=>ic.style.display='');
@@ -1325,6 +1352,7 @@
     const nameDisplay=document.getElementById('profileNameDisplay');if(nameDisplay)nameDisplay.textContent='Guest';
     const nameInput=document.getElementById('settingsNameInput');if(nameInput)nameInput.value='';
     setStatus('statusProfile','Profile reset. Reload the app to see welcome screen.','success');
+    updateDemoPanel();
   }
 
   /* ── Device Info ── */
@@ -1398,9 +1426,13 @@
     renderAppsList();
     loadProfile();
     updateSidebarStats();
+    updateDemoPanel();
     // Apri tab da URL param (?tab=profile ecc)
-    const tabParam=new URLSearchParams(window.location.search).get('tab');
-    if(tabParam){const btn=document.querySelector(`[data-tab="${tabParam}"]`);if(btn)showTab(tabParam,btn);}
+    const tabParam = new URLSearchParams(window.location.search).get('tab');
+    if(tabParam){
+      const btn = document.querySelector(`[data-tab="${tabParam}"]`);
+      showTab(tabParam, btn);
+    }
   });
 </script>
 </body>

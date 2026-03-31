@@ -14,6 +14,11 @@ export const CONFIG = {
     "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-samsung-it.xml",
   ],
 
+  // ── Demo built-in ──────────────────────────────
+  DEMO_M3U_URL:       "https://pub-14721d1e3298489d957154039b2733fd.r2.dev/playlists/demo.m3u",
+  DEMO_EPG_URL:       "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-demo.xml",
+  DEMO_DISMISSED_KEY: "xvb3.demo_dismissed",
+
   // ── Server ─────────────────────────────────────
   STATS_URL:  "https://xvb-stats-wk.jonalinux-uk.workers.dev",
 

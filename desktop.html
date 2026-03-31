@@ -2,13 +2,32 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <link rel="icon" type="image/jpeg" href="assets/icon.jpg">
+  <link rel="icon" type="image/jpeg" href="assets/xvb.png">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="fediverse:creator" content="@xvb@mastodon.uno">
   <title>XVB3</title>
   <link rel="stylesheet" href="css/style.css">
    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" />
+  <!-- ── PWA / Web App Meta ── -->
+  <meta name="application-name" content="XVB3">
+  <meta name="description" content="XVB3 — Extended Video Broadcast. A browser-based IPTV player with live EPG, Material You design and multi-engine playback.">
+  <meta name="theme-color" content="#4a3880">
+  <!-- Apple -->
+  <link rel="apple-touch-icon" href="assets/xvb.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="XVB3">
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="XVB3 — Extended Video Broadcast">
+  <meta property="og:description" content="Browser-based IPTV player with live EPG, Material You design and multi-engine playback.">
+  <meta property="og:image" content="assets/banner-small.png">
+  <meta property="og:site_name" content="XVB3">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="XVB3 — Extended Video Broadcast">
+  <meta name="twitter:description" content="Browser-based IPTV player with live EPG, Material You design and multi-engine playback.">
+  <meta name="twitter:image" content="assets/banner-small.png">
 </head>
 
 <body>
@@ -147,6 +166,10 @@
   </iframe>
   <div id="iframeShield"></div>
 
+  <div id="recFloatingBadge" class="rec-floating-badge" hidden style="display:none">
+    <div class="rec-floating-dot"></div>
+    <span id="recFloatingTimer">00:00</span>
+  </div>
 
   <div id="playerControls">
 

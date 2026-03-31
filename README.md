@@ -22,3 +22,9 @@ XVB3 is a neutral playback interface. It does not provide, host or distribute an
 ## License
 
 MIT — see [LICENCE](LICENCE) for details.
+
+---
+
+## Social
+
+<meta name="fediverse:creator" content="@xvb@mastodon.uno">

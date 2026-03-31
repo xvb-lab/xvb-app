@@ -1,9 +1,7 @@
 <p align="center">
   <img src="assets/Untitled3.png" alt="XVB3 — Extended Video Broadcast" width="">
 </p>
- 
-<h1 align="center">XVB3</h1>
-<p align="center">Extended Video Broadcast — Version 3</p>
+
 <p align="center">
   <a href="https://xvb-app.pages.dev/">Live App</a> &nbsp;·&nbsp;
   <a href="https://xvb-app.pages.dev/doc.html">Doc</a> &nbsp;·&nbsp;

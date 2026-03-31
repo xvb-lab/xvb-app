@@ -3,9 +3,10 @@
 </p>
 
 <p align="center">
-  <a href="https://xvb-app.pages.dev/">Live App</a> &nbsp;·&nbsp;
+  
   <a href="https://xvb-app.pages.dev/index.html">Home</a> &nbsp;·&nbsp;
-  <a href="https://xvb-app.pages.dev/doc.html">Doc</a> &nbsp;·&nbsp;
+  <a href="https://xvb-app.pages.dev/">Open Player</a> &nbsp;·&nbsp;
+  <a href="https://xvb-app.pages.dev/doc.html">Doc</a>
 </p>
 
 

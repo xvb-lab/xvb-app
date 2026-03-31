@@ -8,6 +8,9 @@
   <a href="https://xvb-app.pages.dev/doc.html">Doc</a>
 </p>
 
+<p align="center">
+  <img src="preview/preview.png" alt="XVB3 Preview" width="100%">
+</p>
 
 
 ## Legal

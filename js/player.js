@@ -85,6 +85,21 @@ const parseKidKey = (licStr) => {
   return { kidB64: hexToB64Url(kidHex), keyB64: hexToB64Url(keyHex) };
 };
 
+const parseClearKeys = (licStr) => {
+  if (!licStr) return null;
+  try {
+    const obj = JSON.parse(decodeURIComponent(licStr));
+    const result = {};
+    for (const [kid, key] of Object.entries(obj)) {
+      result[hexToB64Url(kid)] = hexToB64Url(key);
+    }
+    return Object.keys(result).length ? result : null;
+  } catch {
+    const kk = parseKidKey(licStr);
+    return kk ? { [kk.kidB64]: kk.keyB64 } : null;
+  }
+};
+
 // ── Format sniff (identico v2.3) ──────────────────
 const sniffByUrl = (url) => {
   const u = url.toLowerCase();
@@ -188,14 +203,14 @@ export async function play(ch) {
 
   // ── Shaka ClearKey fallback (identico v2.3) ───
   const tryShakaClearKey = async () => {
-    const kk = parseKidKey(lic);
-    if (!kk) return false;
+    const ck = parseClearKeys(lic);
+    if (!ck) return false;
     if (!window.shaka?.Player) return false;
     try {
       shaka.polyfill.installAll();
       const player = new shaka.Player(_video);
       window.__shakaPlayer = player;
-      player.configure({ drm: { clearKeys: { [kk.kidB64]: kk.keyB64 } } });
+      player.configure({ drm: { clearKeys: ck } });
       player.addEventListener('error', () => {
         if (token !== state._playToken) return;
         clearWatchdogs();
@@ -213,10 +228,10 @@ export async function play(ch) {
   // ── Engine starters (identici v2.3) ──────────
   const startDash = () => {
     state.dashInst = dashjs.MediaPlayer().create();
-    const kk = parseKidKey(lic);
-    if (kk) {
+    const ck = parseClearKeys(lic);
+    if (ck) {
       state.dashInst.setProtectionData({
-        'org.w3.clearkey': { clearkeys: { [kk.kidB64]: kk.keyB64 } }
+        'org.w3.clearkey': { clearkeys: ck }
       });
     }
     state.dashInst.initialize(_video, url, true);
@@ -225,7 +240,7 @@ export async function play(ch) {
       if (token !== state._playToken) return;
       const msg = (e?.event?.message || e?.error?.message || '').toString().toLowerCase();
       const isLicenseMissing = msg.includes('license') || msg.includes('drm') || msg.includes('key');
-      if (parseKidKey(lic) && isLicenseMissing) {
+      if (parseClearKeys(lic) && isLicenseMissing) {
         try { state.dashInst.reset(); } catch {}
         state.dashInst = null;
         const ok = await tryShakaClearKey();

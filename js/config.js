@@ -5,14 +5,18 @@
 
 export const CONFIG = {
 
-  // ── M3U playlist URL ───────────────────────────
+  // ── M3U playlist URL───────────────────────────
+
+ // "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-it.xml",
+  //  "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-plutotv-it.xml",
+  //  "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-samsung-it.xml",
+
+  
   M3U_URL: "",
 
   EPG_URLS: [
     "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-zappr-it.xml",
-    "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-it.xml",
-    "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-plutotv-it.xml",
-    "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-samsung-it.xml",
+    
   ],
 
   // ── Demo built-in ──────────────────────────────

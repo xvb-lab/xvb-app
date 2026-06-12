@@ -253,6 +253,7 @@ export async function getCurrent(ch) {
   }
 
   // Altrimenti usa XMLTV con chiavi normalizzate
+  console.log('[EPG DEBUG]', {tvgId:ch.tvgId, epgId:ch.epgId, name:ch.name, keys:[...epgKeys(ch)], epgDataSize:state.epgData.size});
   if (!state.epgData.size) return null;
   for (const key of epgKeys(ch)) {
     const progs = state.epgData.get(key);

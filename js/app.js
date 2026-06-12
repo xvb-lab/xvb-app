@@ -1130,19 +1130,20 @@ async function bindPlayerControls() {
     const h = String(now.getHours()).padStart(2,"0");
     const m = String(now.getMinutes()).padStart(2,"0");
     _tdBlink = !_tdBlink;
-    const sep = _tdBlink ? ":" : " ";
-    const nowStr = h + sep + m;
+    const colon = _tdBlink ? ":" : '<span style="opacity:0.4">:</span>';
+    const nowStr = h + colon + m;
+    const arrow = " › ";
     const epg = state.activeChannel ? await getCurrent(state.activeChannel) : null;
     if (epg) {
-      el.textContent = nowStr + " › " + fmtTime(new Date(epg.stop));
+      el.innerHTML = nowStr + arrow + fmtTime(new Date(epg.stop));
     } else {
       const vid = getVideo();
       if (vid && isFinite(vid.duration) && vid.duration > 0) {
         const dur = vid.duration;
         const fmt = function(s) { return Math.floor(s/60) + ":" + String(Math.floor(s%60)).padStart(2,"0"); };
-        el.textContent = nowStr + " › " + fmt(dur);
+        el.innerHTML = nowStr + arrow + fmt(dur);
       } else {
-        el.textContent = nowStr;
+        el.innerHTML = nowStr;
       }
     }
   };

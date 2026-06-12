@@ -3,7 +3,7 @@
  * Fetch e parsing guida TV (XMLTV).
  * L'API sg101 è stata rimossa per problemi CORS.
  * I canali con epg-id numerico vengono ora risolti tramite XMLTV
- * (es. epg.zappr.stream che usa channel id numerici).
+ * (es. epg.zappr.stream che usa channel id numerici). ...
  */ 
 
 import { CONFIG } from './config.js';

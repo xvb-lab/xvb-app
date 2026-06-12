@@ -540,7 +540,7 @@ img { display:block; }
   cursor: default;
   background: rgba(255,255,255,.13);
 }
-#searchWrap .material-symbols-outlined { font-size: 24px; color: rgba(255,255,255,.7); flex-shrink: 0; }
+#searchWrap .material-symbols-outlined { font-size: 24px; color: var(--md-primary); flex-shrink: 0; }
 
 #searchInput {
   background: none; border: none; outline: none;

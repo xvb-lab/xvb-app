@@ -1,27 +1,25 @@
 /**
  * XVB3 — epg.js
- * Fetch e parsing guida TV (XMLTV + API sg101 per canali Zappr).
+ * Fetch e parsing guida TV (XMLTV).
+ * L'API sg101 è stata rimossa per problemi CORS.
+ * I canali con epg-id numerico vengono ora risolti tramite XMLTV
+ * (es. epg.zappr.stream che usa channel id numerici).
  */
 
 import { CONFIG } from './config.js';
 import { state }  from './state.js';
 
-// ── Cache API sg101 (in memoria, per sessione) ────
-const _sg101Cache = new Map(); // id numerico → programmi
-
-// ── Controlla se tvg-id è numerico (Zappr) ────────
+// ── Controlla se epg-id è numerico (canali Zappr) ────────────────
 function isNumericId(id) {
   if (!id) return false;
-  // Supporta anche "178+1" (timeshift)
   return /^[0-9]+(\+[0-9.]+)?$/.test(String(id).trim());
 }
 
-// ── Fetch EPG da API sg101 per canale numerico ────
-async function fetchSg101(id) {
-  const cacheKey = String(id);
-  if (_sg101Cache.has(cacheKey)) return _sg101Cache.get(cacheKey);
+// ── Lookup sincrono da XMLTV per id numerico ─────────────────────
+function lookupNumericId(epgId) {
+  if (!state.epgData.size) return [];
+  const cacheKey = String(epgId);
 
-  // Gestione timeshift (es. "178+1")
   let timeshift = 0;
   let numId = cacheKey;
   if (/^[0-9]+\+[0-9.]+$/.test(cacheKey)) {
@@ -30,69 +28,21 @@ async function fetchSg101(id) {
     timeshift = parseFloat(parts[1]);
   }
 
-  const now = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  const fmt = d => `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}0000`;
-  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
-  const nextWeek  = new Date(now); nextWeek.setDate(now.getDate() + 7);
-  const start = fmt(yesterday);
-  const end   = fmt(nextWeek);
-
-  const url = `https://services.sg101.prd.sctv.ch/catalog/tv/channels/list/(ids=${numId};start=${start};end=${end};level=normal)`;
-
-  try {
-    const res  = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-
-    const items = json?.Nodes?.Items?.[0]?.Content?.Nodes?.Items || [];
-    const progs = items.flatMap(entry => {
-      try {
-        const avail = entry.Availabilities?.[0];
-        if (!avail) return [];
-
-        const startMs = new Date(avail.AvailabilityStart).getTime() + timeshift * 3600000;
-        const stopMs  = new Date(avail.AvailabilityEnd).getTime()   + timeshift * 3600000;
-        if (isNaN(startMs) || isNaN(stopMs)) return [];
-
-        const desc = entry.Content?.Description;
-        const title = desc?.Title || '';
-        const description = desc?.Summary?.trim() || '';
-
-        // Immagine programma
-        const imgItem = entry.Content?.Nodes?.Items?.find(i => i.Role === 'Lane');
-        const icon = imgItem
-          ? `https://services.sg101.prd.sctv.ch/content/images/${imgItem.ContentPath.trim()}_w1920.webp`
-          : '';
-
-        // Anno
-        const year = desc?.Year ? String(desc.Year) : '';
-
-        // Durata in minuti
-        const duration = Math.round((stopMs - startMs) / 60000);
-
-        // Stagione/Episodio
-        const season  = entry.Content?.Series?.Season  || null;
-        const episode = entry.Content?.Series?.Episode || null;
-
-        // Rating
-        const ratingRaw = desc?.AgeRestrictionRating;
-        const rating = (ratingRaw && ratingRaw !== '0+') ? ratingRaw : '';
-
-        return [{ start: startMs, stop: stopMs, title, desc: description, icon, year, duration, season, episode, rating }];
-      } catch { return []; }
-    }).filter(p => p.stop > Date.now() - 86400000);
-
-    progs.sort((a, b) => a.start - b.start);
-    _sg101Cache.set(cacheKey, progs);
-    return progs;
-  } catch (e) {
-    console.warn(`[XVB3 EPG sg101] Errore canale ${id}:`, e);
-    return [];
+  for (const v of [numId, normalize(numId)]) {
+    if (state.epgData.has(v)) {
+      const progs = state.epgData.get(v);
+      if (!timeshift) return progs;
+      return progs.map(p => ({
+        ...p,
+        start: p.start + timeshift * 3600000,
+        stop:  p.stop  + timeshift * 3600000,
+      }));
+    }
   }
+  return [];
 }
 
-// ── Normalizzazione chiave canale ─────────────────
+// ── Normalizzazione chiave canale ─────────────────────────────────
 function normalize(s) {
   if (!s) return '';
   s = String(s).trim().split('@')[0].split('?')[0];
@@ -111,10 +61,12 @@ function epgKeys(ch) {
   const keys = new Set();
   if (ch.tvgId) keys.add(normalize(ch.tvgId));
   if (ch.name)  keys.add(normalize(ch.name));
+  // Aggiungi anche epg-id numerico come chiave diretta
+  if (ch.epgId) keys.add(String(ch.epgId).split('+')[0]);
   return keys;
 }
 
-// ── Parsing data XMLTV ────────────────────────────
+// ── Parsing data XMLTV ────────────────────────────────────────────
 function parseDate(s) {
   if (!s) return null;
   const m = String(s).match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?/);
@@ -127,14 +79,14 @@ function parseDate(s) {
   return isNaN(ts) ? null : ts;
 }
 
-// ── Parsing XML ───────────────────────────────────
+// ── Parsing XML ───────────────────────────────────────────────────
 function parseXml(xml) {
   const result   = new Map();
   const programs = Array.from(xml.getElementsByTagName('programme'));
 
   programs.forEach(p => {
-    const chId = normalize(p.getAttribute('channel'));
-    if (!chId) return;
+    const rawId = p.getAttribute('channel') || '';
+    if (!rawId) return;
 
     const start = parseDate(p.getAttribute('start'));
     const stop  = parseDate(p.getAttribute('stop'));
@@ -144,7 +96,6 @@ function parseXml(xml) {
     const desc  = p.getElementsByTagName('desc')[0]?.textContent  || '';
     const icon  = p.getElementsByTagName('icon')[0]?.getAttribute('src') || '';
 
-    // Rating / age — supporta <rating><value>TV-MA</value></rating> e <age>18</age>
     let rating = '';
     const ratingEl = p.getElementsByTagName('rating')[0];
     if (ratingEl) {
@@ -156,22 +107,34 @@ function parseXml(xml) {
       if (ageEl) rating = ageEl.textContent?.trim() || '';
     }
 
-    if (!result.has(chId)) result.set(chId, []);
-    // Anno — <date>2016</date> o <date>20161201000000</date>
     const dateRaw = p.getElementsByTagName('date')[0]?.textContent?.trim() || '';
     const year = dateRaw ? dateRaw.substring(0, 4) : '';
+    const duration = Math.round((stop - start) / 60000);
 
-    // Durata in minuti da start/stop
-    const duration = (stop && start) ? Math.round((stop - start) / 60000) : 0;
+    const prog = { start, stop, title, desc, icon, rating, year, duration };
 
-    result.get(chId).push({ start, stop, title, desc, icon, rating, year, duration });
+    // Indicizza per id grezzo (numerico o stringa) E normalizzato
+    const keys = new Set([rawId, normalize(rawId)]);
+    // Se l'id contiene solo cifre, indicizza anche solo la parte numerica
+    const numMatch = rawId.match(/^(\d+)/);
+    if (numMatch) keys.add(numMatch[1]);
+
+    for (const key of keys) {
+      if (!key) continue;
+      if (!result.has(key)) result.set(key, []);
+      // Evita duplicati
+      const arr = result.get(key);
+      if (!arr.find(x => x.start === start && x.title === title)) {
+        arr.push(prog);
+      }
+    }
   });
 
   for (const [, arr] of result) arr.sort((a, b) => a.start - b.start);
   return result;
 }
 
-// ── Fetch singolo URL EPG (con supporto .gz) ─────
+// ── Fetch singolo URL EPG (con supporto .gz) ─────────────────────
 async function fetchOneEpg(url) {
   const bust = url.includes('?') ? `&_t=${Date.now()}` : `?_t=${Date.now()}`;
   const res  = await fetch(url + bust, { cache: 'no-store' });
@@ -182,7 +145,6 @@ async function fetchOneEpg(url) {
 
   let text;
   if (isGz && typeof DecompressionStream !== 'undefined') {
-    // Decomprimi gzip nel browser
     const ds     = new DecompressionStream('gzip');
     const blob   = await res.blob();
     const stream = blob.stream().pipeThrough(ds);
@@ -211,9 +173,9 @@ async function fetchOneEpg(url) {
   return parseXml(xml);
 }
 
-// ── Fetch ─────────────────────────────────────────
+// ── Fetch principale ──────────────────────────────────────────────
 export async function fetchEpg() {
-  // Migrazione da vecchia chiave xvb3.custom_epg → xvb3.epg_saved
+  // Migrazione da vecchia chiave
   try {
     const oldRaw = localStorage.getItem('xvb3.custom_epg');
     if (oldRaw) {
@@ -233,7 +195,6 @@ export async function fetchEpg() {
     }
   } catch {}
 
-  // Leggi EPG salvate dall'utente (built-in attivate + custom)
   let savedUrls = [];
   try {
     const raw = localStorage.getItem('xvb3.epg_saved');
@@ -241,7 +202,6 @@ export async function fetchEpg() {
     savedUrls = Array.isArray(arr) ? arr.map(e => e.url).filter(Boolean) : [];
   } catch {}
 
-  // De-duplica rispetto a CONFIG.EPG_URLS
   const configUrls = CONFIG.EPG_URLS || [];
   const extraUrls = savedUrls.filter(u => !configUrls.includes(u));
   const demoDismissed = localStorage.getItem(CONFIG.DEMO_DISMISSED_KEY) === '1';
@@ -272,33 +232,32 @@ export async function fetchEpg() {
   }
 }
 
-// ── Demo channel detection ────────────────────────
+// ── Demo channel detection ────────────────────────────────────────
 function isDemoChannel(ch) {
   const id = (ch?.tvgId || ch?.epgId || '');
   return id.endsWith('.demo');
 }
 
-// ── Query ─────────────────────────────────────────
+// ── getCurrent ────────────────────────────────────────────────────
 export async function getCurrent(ch) {
   if (!ch) return null;
   const now = Date.now();
 
-  // Se epgId è numerico → usa API sg101
+  // Canali con epg-id numerico (Zappr) → cerca nell'XMLTV
   if (isNumericId(ch.epgId)) {
-    const progs = await fetchSg101(ch.epgId);
+    const progs = lookupNumericId(ch.epgId);
     const p = progs.find(x => x.start <= now && x.stop > now);
     if (!p) return null;
     const pct = Math.min(100, Math.round(((now - p.start) / (p.stop - p.start)) * 100));
     return { ...p, pct, startDate: new Date(p.start), stopDate: new Date(p.stop) };
   }
 
-  // Altrimenti usa XMLTV
+  // Altrimenti usa XMLTV con chiavi normalizzate
   if (!state.epgData.size) return null;
   for (const key of epgKeys(ch)) {
     const progs = state.epgData.get(key);
     if (!progs) continue;
 
-    // Canale demo: date statiche → restituisce sempre il primo programma
     if (isDemoChannel(ch)) {
       const p = progs[0];
       if (!p) continue;
@@ -314,22 +273,20 @@ export async function getCurrent(ch) {
   return null;
 }
 
+// ── getNext ───────────────────────────────────────────────────────
 export async function getNext(ch, limit = 5) {
   if (!ch) return [];
   const now = Date.now();
 
-  // Se epgId è numerico → usa API sg101
   if (isNumericId(ch.epgId)) {
-    const progs = await fetchSg101(ch.epgId);
+    const progs = lookupNumericId(ch.epgId);
     return progs.filter(x => x.start > now).slice(0, limit);
   }
 
-  // Altrimenti usa XMLTV
   if (!state.epgData.size) return [];
   for (const key of epgKeys(ch)) {
     const progs = state.epgData.get(key);
     if (!progs) continue;
-    // Canale demo: nessun "prossimo" da mostrare
     if (isDemoChannel(ch)) return [];
     const list = progs.filter(x => x.start > now).slice(0, limit);
     if (list.length) return list;
@@ -337,7 +294,7 @@ export async function getNext(ch, limit = 5) {
   return [];
 }
 
-// ── Auto refresh ──────────────────────────────────
+// ── Auto refresh ──────────────────────────────────────────────────
 export function startAutoRefresh() {
   clearInterval(state.epgTimer);
   state.epgTimer = setInterval(fetchEpg, CONFIG.EPG_REFRESH_MS);

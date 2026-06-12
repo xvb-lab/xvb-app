@@ -16,7 +16,10 @@ export const CONFIG = {
 
   EPG_URLS: [
     "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-uk.xml",
-    "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-zappr-it.xml",
+    "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-it.xml",
+    "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-plutotv-it.xml",
+    "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-samsung-it.xml",
+   // "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-zappr-it.xml",
     
   ],
 

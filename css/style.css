@@ -604,7 +604,7 @@ img { display:block; }
 .cat-btn.active {
  background: var(--md-primary);
  border: none;
- color: #000;
+ color: var(--md-on-primary);
  font-weight: 500;
 }
 

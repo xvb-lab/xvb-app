@@ -1562,17 +1562,25 @@ function startOnlineRefresh() {
 function startHeroRefresh() {
   let _lastHeroUrl = null;
   let _lastHeroUpdate = 0;
+  let _lastProgStop = 0;
   setInterval(() => {
     if (!state.activeChannel) return;
     if (document.visibilityState !== 'visible') return;
     if (state.playerOpen) return;
     const now = Date.now();
-    // Aggiorna solo se il canale è cambiato o sono passati 60s dall'ultimo update
-    if (state.activeChannel.url === _lastHeroUrl && now - _lastHeroUpdate < 60000) return;
+    const channelChanged = state.activeChannel.url !== _lastHeroUrl;
+    const progFinished = _lastProgStop > 0 && now >= _lastProgStop;
+    const timeout = now - _lastHeroUpdate >= 60000;
+    if (!channelChanged && !progFinished && !timeout) return;
     _lastHeroUrl = state.activeChannel.url;
     _lastHeroUpdate = now;
-    updateHero(state.activeChannel);
-  }, 30000);
+    _lastProgStop = 0;
+    updateHero(state.activeChannel).then(() => {
+      if (window._xvbEpgCurrent?.stop) {
+        _lastProgStop = window._xvbEpgCurrent.stop;
+      }
+    });
+  }, 15000);
 }
 
 /* ── Player EPG progress refresh ── */
@@ -1584,7 +1592,7 @@ function startPlayerProgressRefresh() {
     if (epg) {
       if (fill) { fill.style.width = `${epg.pct}%`; fill.classList.remove('is-buffer'); }
       const titleEl = $('playerProgramTitle');
-      if (titleEl && !titleEl.textContent) titleEl.textContent = epg.title || '';
+      if (titleEl) titleEl.textContent = epg.title || '';
     } else {
       if (fill) fill.classList.add('is-buffer');
     }

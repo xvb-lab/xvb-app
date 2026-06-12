@@ -1122,21 +1122,27 @@ async function bindPlayerControls() {
   $('playerForward')?.addEventListener('click', (e) => { e.stopPropagation(); forward(10); });
 
   // ── Time display — ora corrente / fine EPG ──
+  let _tdBlink = true;
   const updateTimeDisplay = async () => {
     const el = $('playerTimeDisplay'); if (!el) return;
     const now = new Date();
-    const nowStr = fmtTime(now);
+    const h = String(now.getHours()).padStart(2,'0');
+    const m = String(now.getMinutes()).padStart(2,'0');
+    const sep = _tdBlink ? ':' : '<span style="opacity:0">:</span>';
+    _tdBlink = !_tdBlink;
+    const nowStr = `${h}${sep}${m}`;
+    const arrow = '<span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin:0 4px;font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 20">arrow_forward</span>';
     const epg = state.activeChannel ? await getCurrent(state.activeChannel) : null;
     if (epg) {
-      el.textContent = `${nowStr} / ${fmtTime(new Date(epg.stop))}`;
+      el.innerHTML = `${nowStr}${arrow}${fmtTime(new Date(epg.stop))}`;
     } else {
       const vid = getVideo();
       if (vid && isFinite(vid.duration) && vid.duration > 0) {
         const dur = vid.duration;
         const fmt = s => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
-        el.textContent = `${nowStr} / ${fmt(dur)}`;
+        el.innerHTML = `${nowStr}${arrow}${fmt(dur)}`;
       } else {
-        el.textContent = nowStr;
+        el.innerHTML = nowStr;
       }
     }
   };

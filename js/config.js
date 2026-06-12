@@ -48,6 +48,7 @@ export const CONFIG = {
     "app-philipsnovatek",
     "livetvuk.com/embed/",
     "livehdtv.com/",
+    "wbd.zappr.stream/",
   ],
 
   // ── EPG refresh ────────────────────────────────

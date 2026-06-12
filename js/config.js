@@ -19,7 +19,7 @@ export const CONFIG = {
     "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-it.xml",
     "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-plutotv-it.xml",
     "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-samsung-it.xml",
-   // "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-zappr-it.xml",
+    "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-zappr-it.xml",
     
   ],
 

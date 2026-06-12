@@ -233,6 +233,7 @@ export async function fetchEpg() {
 
     for (const [, arr] of state.epgData) arr.sort((a, b) => a.start - b.start);
     console.log(`[XVB3 EPG] Caricati ${state.epgData.size} canali da ${allUrls.length} sorgenti`);
+    window.__xvbEpgData = state.epgData;
   } catch (e) {
     console.error('[XVB3 EPG] Errore:', e);
   }

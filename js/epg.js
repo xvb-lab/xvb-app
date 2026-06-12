@@ -59,10 +59,16 @@ function normalize(s) {
 
 function epgKeys(ch) {
   const keys = new Set();
-  if (ch.tvgId) keys.add(normalize(ch.tvgId));
+  if (ch.tvgId) {
+    keys.add(normalize(ch.tvgId));
+    keys.add(ch.tvgId.trim().split('@')[0]); // raw, senza normalizzare
+  }
   if (ch.name)  keys.add(normalize(ch.name));
-  // Aggiungi anche epg-id numerico come chiave diretta
-  if (ch.epgId) keys.add(String(ch.epgId).split('+')[0]);
+  if (ch.epgId) {
+    const rawEpgId = String(ch.epgId).split('+')[0];
+    keys.add(rawEpgId);
+    keys.add(normalize(rawEpgId));
+  }
   return keys;
 }
 
@@ -253,7 +259,6 @@ export async function getCurrent(ch) {
   }
 
   // Altrimenti usa XMLTV con chiavi normalizzate
-  console.log('[EPG DEBUG]', {tvgId:ch.tvgId, epgId:ch.epgId, name:ch.name, keys:[...epgKeys(ch)], epgDataSize:state.epgData.size});
   if (!state.epgData.size) return null;
   for (const key of epgKeys(ch)) {
     const progs = state.epgData.get(key);

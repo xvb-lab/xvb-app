@@ -9,6 +9,7 @@ export const CONFIG = {
   M3U_URL: "",
 
   EPG_URLS: [
+    "https://epg.zappr.stream/it.xml.gz",
     "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-it.xml",
     "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-plutotv-it.xml",
     "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-samsung-it.xml",

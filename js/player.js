@@ -210,7 +210,7 @@ export async function play(ch) {
       shaka.polyfill.installAll();
       const player = new shaka.Player(_video);
       window.__shakaPlayer = player;
-      player.configure({ drm: { clearKeys: ck } });
+      player.configure({ drm: { clearKeys: ck }, restrictions: { maxHeight: 720 } });
       player.addEventListener('error', () => {
         if (token !== state._playToken) return;
         clearWatchdogs();
@@ -232,6 +232,9 @@ export async function play(ch) {
     if (ck) {
       state.dashInst.setProtectionData({
         'org.w3.clearkey': { clearkeys: ck }
+      });
+      state.dashInst.updateSettings({
+        streaming: { abr: { maxBitrate: { video: 4000 }, limitBitrateByPortal: true } }
       });
     }
     state.dashInst.initialize(_video, url, true);

@@ -1027,6 +1027,7 @@ function openPlayer() {
   const overlay = $('playerOverlay');
   overlay?.classList.add('active');
   state.playerOpen = true;
+  if ($('playerPlayIcon')) $('playerPlayIcon').textContent = 'pause';
   showControls();
 
   // Mostra controlli su movimento mouse o touch

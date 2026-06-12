@@ -15,6 +15,7 @@ export const CONFIG = {
   M3U_URL: "",
 
   EPG_URLS: [
+    "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-uk.xml",
     "https://raw.githubusercontent.com/xvb-lab/xvb-epg/refs/heads/main/epg/epg-zappr-it.xml",
     
   ],
